@@ -239,7 +239,7 @@ export function DrugInteractionForm({
             <Input
               id="drug-a"
               value={drugA}
-              onChange={(e) => {
+              onChange={(e: { target: { value: string } }) => {
                 setDrugA(e.target.value);
                 setFocusedField("a");
               }}
@@ -259,7 +259,7 @@ export function DrugInteractionForm({
             <Input
               id="drug-b"
               value={drugB}
-              onChange={(e) => {
+              onChange={(e: { target: { value: string } }) => {
                 setDrugB(e.target.value);
                 setFocusedField("b");
               }}

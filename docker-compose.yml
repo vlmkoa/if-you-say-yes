@@ -1,0 +1,70 @@
+# if-you-say-yes — full stack (PostgreSQL, core-api, frontend, Python backend)
+# Usage: docker compose up -d
+# Set NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD for the interaction API (Phase 1); backend starts anyway but /interaction will fail until Neo4j is configured.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ifyousayyes-postgres
+    environment:
+      POSTGRES_DB: ifyousayyes
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  core-api:
+    build:
+      context: ./core-api
+      dockerfile: Dockerfile
+    container_name: ifyousayyes-core-api
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/ifyousayyes
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SERVER_PORT: 8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ifyousayyes-frontend
+    environment:
+      SPRING_API_URL: http://core-api:8080
+      NEXT_PUBLIC_SPRING_API_URL: http://localhost:8080
+      # Phase 1: browser calls host:8000 (backend)
+      NEXT_PUBLIC_BACKEND_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - core-api
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: ifyousayyes-backend
+    environment:
+      NEO4J_URI: ${NEO4J_URI:-}
+      NEO4J_USERNAME: ${NEO4J_USERNAME:-}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-}
+      NEO4J_DATABASE: ${NEO4J_DATABASE:-neo4j}
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

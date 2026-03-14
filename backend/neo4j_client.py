@@ -61,8 +61,9 @@ def get_interaction(drug_a: str, drug_b: str) -> Optional[Dict[str, Any]]:
     LIMIT 1
     """
 
+    database = os.getenv("NEO4J_DATABASE") or "neo4j"
     try:
-        with driver.session() as session:
+        with driver.session(database=database) as session:
             record = session.execute_read(
                 lambda tx: tx.run(
                     cypher,

@@ -1,0 +1,7 @@
+.env
+.env.local
+.env.*.local
+
+# Dependencies and build output
+node_modules/
+.next/

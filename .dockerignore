@@ -1,0 +1,29 @@
+# Git and IDE
+.git
+.gitignore
+.venv
+venv
+__pycache__
+.pytest_cache
+*.pyc
+.idea
+.vscode
+*.iml
+
+# Build outputs
+target
+.next
+node_modules
+out
+*.tsbuildinfo
+
+# Env and secrets
+.env
+.env.*
+*.local
+application-local.properties
+
+# Docs and misc
+README.md
+*.md
+.DS_Store

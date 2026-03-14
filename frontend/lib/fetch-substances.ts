@@ -1,6 +1,7 @@
 import type { PagedSubstances } from "./substance-types";
 
-const DEFAULT_API_BASE = process.env.NEXT_PUBLIC_SPRING_API_URL ?? "http://localhost:8080";
+// Server-side (e.g. Docker: http://core-api:8080); client/browser uses NEXT_PUBLIC_*
+const DEFAULT_API_BASE = process.env.SPRING_API_URL ?? process.env.NEXT_PUBLIC_SPRING_API_URL ?? "http://localhost:8080";
 
 export async function fetchSubstances(options?: {
   apiBase?: string;
