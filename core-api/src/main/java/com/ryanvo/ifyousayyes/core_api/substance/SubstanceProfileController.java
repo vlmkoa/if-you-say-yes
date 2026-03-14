@@ -1,0 +1,38 @@
+package com.ryanvo.ifyousayyes.core_api.substance;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/api/substances")
+public class SubstanceProfileController {
+
+	private final SubstanceProfileService service;
+
+	public SubstanceProfileController(SubstanceProfileService service) {
+		this.service = service;
+	}
+
+	/**
+	 * Paginated list of substance profiles.
+	 * Default: page=0, size=20, sort=name,asc.
+	 */
+	@GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
+	public Page<SubstanceProfile> getSubstances(
+			@RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "20") int size,
+			@RequestParam(defaultValue = "name") String sortBy,
+			@RequestParam(defaultValue = "asc") String sortDir) {
+
+		Sort.Direction direction = "desc".equalsIgnoreCase(sortDir) ? Sort.Direction.DESC : Sort.Direction.ASC;
+		Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
+		return service.findAll(pageable);
+	}
+}
