@@ -48,6 +48,21 @@ def test_interaction_handles_neo4j_error(get_interaction_mock: MagicMock) -> Non
 
     response = client.get("/interaction", params={"drug_a": "A", "drug_b": "B"})
 
-    assert response.status_code == 500
-    assert response.json()["detail"] == "Failed to query interaction graph."
+    assert response.status_code == 503
+    assert "unavailable" in response.json()["detail"].lower()
+
+
+@patch("backend.main.neo4j_available")
+def test_health_ok(neo4j_available_mock: MagicMock) -> None:
+    neo4j_available_mock.return_value = True
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.json().get("neo4j") == "available"
+
+
+@patch("backend.main.neo4j_available")
+def test_health_unavailable(neo4j_available_mock: MagicMock) -> None:
+    neo4j_available_mock.return_value = False
+    response = client.get("/health")
+    assert response.status_code == 503
 

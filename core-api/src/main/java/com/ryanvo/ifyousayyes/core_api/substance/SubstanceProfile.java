@@ -32,6 +32,14 @@ public class SubstanceProfile {
 	@Column(name = "standard_dosage", length = 512)
 	private String standardDosage;
 
+	/** JSON from PsychonautWiki (ROAs with dose/duration). */
+	@Column(name = "dosage_json", columnDefinition = "TEXT")
+	private String dosageJson;
+
+	/** JSON array of top adverse events from OpenFDA (e.g. [{"term":"NAUSEA","count":123}]). */
+	@Column(name = "top_adverse_events_json", columnDefinition = "TEXT")
+	private String topAdverseEventsJson;
+
 	public Long getId() {
 		return id;
 	}
@@ -70,5 +78,21 @@ public class SubstanceProfile {
 
 	public void setStandardDosage(String standardDosage) {
 		this.standardDosage = standardDosage;
+	}
+
+	public String getDosageJson() {
+		return dosageJson;
+	}
+
+	public void setDosageJson(String dosageJson) {
+		this.dosageJson = dosageJson;
+	}
+
+	public String getTopAdverseEventsJson() {
+		return topAdverseEventsJson;
+	}
+
+	public void setTopAdverseEventsJson(String topAdverseEventsJson) {
+		this.topAdverseEventsJson = topAdverseEventsJson;
 	}
 }

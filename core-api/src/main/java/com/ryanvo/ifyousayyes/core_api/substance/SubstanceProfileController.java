@@ -5,10 +5,15 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/substances")
@@ -34,5 +39,14 @@ public class SubstanceProfileController {
 		Sort.Direction direction = "desc".equalsIgnoreCase(sortDir) ? Sort.Direction.DESC : Sort.Direction.ASC;
 		Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
 		return service.findAll(pageable);
+	}
+
+	/**
+	 * Sync dosage (PsychonautWiki) and/or adverse events (OpenFDA) for a substance.
+	 * Creates a new profile with default halfLife/bioavailability if one does not exist.
+	 */
+	@PostMapping(value = "/sync", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<SubstanceProfile> syncSubstance(@Valid @RequestBody SubstanceSyncDto dto) {
+		return ResponseEntity.ok(service.syncDosageAndAdverseEvents(dto));
 	}
 }

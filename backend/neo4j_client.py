@@ -42,6 +42,21 @@ def close_driver() -> None:
         _driver = None
 
 
+def neo4j_available() -> bool:
+    """
+    Return True if Neo4j is reachable (credentials set and a simple query succeeds).
+    Use for health checks; does not raise.
+    """
+    try:
+        driver = get_driver()
+        database = os.getenv("NEO4J_DATABASE") or "neo4j"
+        with driver.session(database=database) as session:
+            session.run("RETURN 1").consume()
+        return True
+    except Exception:
+        return False
+
+
 def get_interaction(drug_a: str, drug_b: str) -> Optional[Dict[str, Any]]:
     """
     Look for an [:INTERACTS_WITH] relationship between two Substance nodes.

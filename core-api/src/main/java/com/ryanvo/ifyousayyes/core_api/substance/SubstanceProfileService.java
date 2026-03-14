@@ -5,6 +5,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.util.Optional;
+
 @Service
 public class SubstanceProfileService {
 
@@ -17,5 +20,32 @@ public class SubstanceProfileService {
 	@Transactional(readOnly = true)
 	public Page<SubstanceProfile> findAll(Pageable pageable) {
 		return repository.findAllByOrderByNameAsc(pageable);
+	}
+
+	/**
+	 * Upsert dosage and/or adverse events for a substance by name.
+	 * If the profile does not exist, creates one with default halfLife and bioavailability (0).
+	 */
+	@Transactional
+	public SubstanceProfile syncDosageAndAdverseEvents(SubstanceSyncDto dto) {
+		Optional<SubstanceProfile> existing = repository.findByName(dto.name());
+		SubstanceProfile profile;
+		if (existing.isPresent()) {
+			profile = existing.get();
+			if (dto.dosageJson() != null) {
+				profile.setDosageJson(dto.dosageJson());
+			}
+			if (dto.topAdverseEventsJson() != null) {
+				profile.setTopAdverseEventsJson(dto.topAdverseEventsJson());
+			}
+		} else {
+			profile = new SubstanceProfile();
+			profile.setName(dto.name());
+			profile.setHalfLife(BigDecimal.ZERO);
+			profile.setBioavailability(BigDecimal.ZERO);
+			profile.setDosageJson(dto.dosageJson());
+			profile.setTopAdverseEventsJson(dto.topAdverseEventsJson());
+		}
+		return repository.save(profile);
 	}
 }

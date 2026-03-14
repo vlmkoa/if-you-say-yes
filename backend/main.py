@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from neo4j.exceptions import Neo4jError
 from pydantic import BaseModel, Field
 
-from .neo4j_client import get_interaction, close_driver
+from .neo4j_client import get_interaction, close_driver, neo4j_available
 
 
 logger = logging.getLogger("drug-interaction-api")
@@ -45,6 +45,24 @@ app.add_middleware(
 )
 
 
+@app.get(
+    "/health",
+    summary="Health check (Neo4j connectivity)",
+    responses={200: {"description": "Neo4j reachable"}, 503: {"description": "Neo4j unreachable"}},
+)
+async def health() -> dict:
+    """
+    Returns 200 if Neo4j is reachable, 503 otherwise.
+    Use this to show "interaction check temporarily unavailable" in the UI when Neo4j is off.
+    """
+    if neo4j_available():
+        return {"status": "ok", "neo4j": "available"}
+    raise HTTPException(
+        status_code=503,
+        detail="Neo4j is not available. Interaction lookup is disabled until the database is reachable.",
+    )
+
+
 @app.on_event("shutdown")
 async def shutdown_event() -> None:
     # Ensure the Neo4j driver is closed when the app shuts down.
@@ -76,9 +94,10 @@ async def read_interaction(
         result: Optional[dict] = get_interaction(drug_a.strip(), drug_b.strip())
     except Neo4jError as e:
         logger.exception("Error while querying Neo4j for interaction.")
+        # 503 when Neo4j is unreachable (e.g. AuraDB sleeping, network down)
         raise HTTPException(
-            status_code=500,
-            detail="Failed to query interaction graph.",
+            status_code=503,
+            detail="Interaction service temporarily unavailable. Neo4j may be offline or unreachable.",
         ) from e
 
     if result is None:

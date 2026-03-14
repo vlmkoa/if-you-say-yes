@@ -53,9 +53,17 @@ docker compose up -d backend
 
 Docker Compose reads `.env` and passes these into the backend container.
 
-### Step 3: Create the graph schema in Neo4j
+### Step 3: Load interaction data into Neo4j (optional)
 
-In Neo4j Browser (or cypher-shell), run Cypher that matches what the backend expects:
+From the project root, with `NEO4J_URI`, `NEO4J_USERNAME`, `NEO4J_PASSWORD` set (e.g. in `.env`), run:
+
+```powershell
+python scripts/load_tripsit_to_neo4j.py
+```
+
+This fetches TripSit’s combos.json and writes all interactions into Neo4j as `Substance` nodes and `INTERACTS_WITH` relationships (with `risk_level` and `mechanism`). After this, **GET /interaction** will return data for any pair present in TripSit.
+
+Alternatively, create the graph manually in Neo4j Browser (or cypher-shell):
 
 - **Nodes:** label `Substance`, property `name` (e.g. drug name).
 - **Relationship:** `INTERACTS_WITH` between two `Substance` nodes, with properties `risk_level` and `mechanism`.
@@ -72,6 +80,14 @@ CREATE (a)-[:INTERACTS_WITH {risk_level: "Caution", mechanism: "Increased bleedi
 - Open http://localhost:8000/docs and call **GET /interaction** with `drug_a=Warfarin` and `drug_b=Ibuprofen`. You should get a 200 with `risk_level` and `mechanism`.
 - Or use the drug interaction form in the frontend (on a page that uses `apiBaseUrl="http://localhost:8000"`); it will call this endpoint and show the result.
 
+### When Neo4j is not available
+
+If Neo4j is off (e.g. AuraDB free instance sleeping, laptop closed, or local Neo4j stopped):
+
+- **GET /interaction** returns **503** with a message that the interaction service is temporarily unavailable. The app does not crash.
+- **GET /health** (http://localhost:8000/health) returns **503** when Neo4j is unreachable and **200** when it is reachable. The frontend can call this to show “Interaction check temporarily unavailable” instead of a generic error.
+- Once Neo4j is back and reachable, the backend works again without restart (the next request will succeed).
+
 ---
 
 ## 4. If something is not running
@@ -79,3 +95,48 @@ CREATE (a)-[:INTERACTS_WITH {risk_level: "Caution", mechanism: "Increased bleedi
 - **Containers:** `docker compose ps` — all should be “Up”.
 - **Logs:** `docker compose logs frontend` or `docker compose logs backend` (or `core-api`, `postgres`).
 - **Rebuild after code changes:** `docker compose up -d --build`.
+
+---
+
+## 5. Syncing PsychonautWiki and OpenFDA into core-api (PostgreSQL)
+
+To populate substance profiles with dosage (PsychonautWiki) and top adverse events (OpenFDA), run the sync script with **core-api** up (e.g. `docker compose up -d core-api` or full stack):
+
+```powershell
+python scripts/sync_substances_to_core_api.py
+```
+
+This uses the default substance list (`caffeine`, `ibuprofen`, `alcohol`, `lsd`, `mdma`). To sync specific substances:
+
+```powershell
+python scripts/sync_substances_to_core_api.py caffeine paracetamol
+```
+
+The script calls PsychonautWiki and OpenFDA ingestors, then **POST /api/substances/sync** to create or update profiles (including `dosageJson` and `topAdverseEventsJson`). **GET /api/substances** will then return these profiles with the new fields.
+
+---
+
+## 6. Refresh protocol (keeping data up to date)
+
+External sources (TripSit, PsychonautWiki, OpenFDA) change over time. To refresh integrated data:
+
+**One-shot refresh (Neo4j + core-api):**
+
+```powershell
+python scripts/refresh_data.py
+```
+
+**Refresh only Neo4j or only core-api:**
+
+```powershell
+python scripts/refresh_data.py --neo4j
+python scripts/refresh_data.py --core-api
+```
+
+**Suggested schedule:** run a full refresh weekly (e.g. Sunday night). On Windows you can use Task Scheduler; on Linux/macOS use cron, for example:
+
+```cron
+0 3 * * 0 cd /path/to/ifyousayyes && python scripts/refresh_data.py
+```
+
+Ensure Neo4j and core-api are running (or reachable) when the job runs. If Neo4j is down, the Neo4j step is skipped or fails; core-api sync can still run.
