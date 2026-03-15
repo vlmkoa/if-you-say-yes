@@ -23,6 +23,51 @@ public class SubstanceProfileService {
 	}
 
 	@Transactional(readOnly = true)
+	public Optional<SubstanceProfile> findByNameIgnoreCase(String name) {
+		return repository.findByNameIgnoreCase(name);
+	}
+
+	/** Update only interactionReference for a substance by name (for LLM backfill). */
+	@Transactional
+	public Optional<SubstanceProfile> updateInteractionReference(String name, String interactionReference) {
+		return repository.findByNameIgnoreCase(name != null ? name.trim() : null)
+			.map(profile -> {
+				profile.setInteractionReference(interactionReference);
+				return repository.save(profile);
+			});
+	}
+
+	/** Update category and/or interactionReference for a substance by name. Null values are not written. */
+	@Transactional
+	public Optional<SubstanceProfile> patchByName(String name, String category, String interactionReference) {
+		return repository.findByNameIgnoreCase(name != null ? name.trim() : null)
+			.map(profile -> {
+				if (category != null) {
+					profile.setCategory(category);
+				}
+				if (interactionReference != null) {
+					profile.setInteractionReference(interactionReference);
+				}
+				return repository.save(profile);
+			});
+	}
+
+	/** Update category and/or interactionReference by id (no name in URL; avoids 403 from URL filters). */
+	@Transactional
+	public Optional<SubstanceProfile> patchById(Long id, String category, String interactionReference) {
+		return repository.findById(id)
+			.map(profile -> {
+				if (category != null) {
+					profile.setCategory(category);
+				}
+				if (interactionReference != null) {
+					profile.setInteractionReference(interactionReference);
+				}
+				return repository.save(profile);
+			});
+	}
+
+	@Transactional(readOnly = true)
 	public Page<SubstanceProfile> findAll(Pageable pageable) {
 		return repository.findAll(pageable);
 	}
@@ -60,6 +105,12 @@ public class SubstanceProfileService {
 			if (dto.addictionPotential() != null) {
 				profile.setAddictionPotential(dto.addictionPotential());
 			}
+			if (dto.category() != null) {
+				profile.setCategory(dto.category());
+			}
+			if (dto.interactionReference() != null) {
+				profile.setInteractionReference(dto.interactionReference());
+			}
 		} else {
 			profile = new SubstanceProfile();
 			profile.setName(dto.name());
@@ -69,6 +120,12 @@ public class SubstanceProfileService {
 			profile.setTopAdverseEventsJson(dto.topAdverseEventsJson());
 			if (dto.addictionPotential() != null) {
 				profile.setAddictionPotential(dto.addictionPotential());
+			}
+			if (dto.category() != null) {
+				profile.setCategory(dto.category());
+			}
+			if (dto.interactionReference() != null) {
+				profile.setInteractionReference(dto.interactionReference());
 			}
 		}
 		return repository.save(profile);

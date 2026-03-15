@@ -38,6 +38,20 @@ public class SubstanceProfileController {
 			.orElse(ResponseEntity.notFound().build());
 	}
 
+	/**
+	 * Update category and/or interactionReference by id (avoids drug name in URL; use for scripts to avoid 403 from filters).
+	 */
+	@org.springframework.web.bind.annotation.PatchMapping(value = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<SubstanceProfile> patchById(
+			@PathVariable Long id,
+			@RequestBody java.util.Map<String, String> body) {
+		String cat = body != null ? body.get("category") : null;
+		String ref = body != null ? body.get("interactionReference") : null;
+		return service.patchById(id, cat, ref)
+			.map(ResponseEntity::ok)
+			.orElse(ResponseEntity.notFound().build());
+	}
+
 	private static final List<String> ALLOWED_SORT_FIELDS = List.of("name", "halfLife", "bioavailability", "id");
 
 	/**
@@ -68,5 +82,27 @@ public class SubstanceProfileController {
 	@PostMapping(value = "/sync", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<SubstanceProfile> syncSubstance(@Valid @RequestBody SubstanceSyncDto dto) {
 		return ResponseEntity.ok(service.syncDosageAndAdverseEvents(dto));
+	}
+
+	/**
+	 * Update only interactionReference for a substance (by name). Used by scripts to set
+	 * a similar TripSit drug for interaction fallback.
+	 */
+	@GetMapping(value = "/by-name", produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<SubstanceProfile> getSubstanceByName(@RequestParam String name) {
+		return service.findByNameIgnoreCase(name != null ? name.trim() : "")
+			.map(ResponseEntity::ok)
+			.orElse(ResponseEntity.notFound().build());
+	}
+
+	@org.springframework.web.bind.annotation.PatchMapping(value = "/by-name", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<SubstanceProfile> patchByName(
+			@RequestParam String name,
+			@RequestBody java.util.Map<String, String> body) {
+		String cat = body != null ? body.get("category") : null;
+		String ref = body != null ? body.get("interactionReference") : null;
+		return service.patchByName(name, cat, ref)
+			.map(ResponseEntity::ok)
+			.orElse(ResponseEntity.notFound().build());
 	}
 }

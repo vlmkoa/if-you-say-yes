@@ -57,7 +57,7 @@ This makes the driver use the `neo4j+ssc` scheme so the connection accepts the p
 docker compose up -d backend
 ```
 
-Docker Compose reads `.env` and passes these into the backend container.
+Docker Compose reads `.env` and passes these into the backend container. The backend also uses **CORE_API_URL** (default `http://core-api:8080` in Docker) to look up **category** and **interaction_reference** from Postgres when a substance is missing in Neo4j or has no category/ref there—so opioids/benzo resolution and “similar drug” fallback still work in those cases. **Every drug in Postgres should still be synced to Neo4j as a node** (see section 5.3); the Postgres lookup is a fallback for resolution only.
 
 ### Step 3: Load interaction data into Neo4j (optional)
 
@@ -152,6 +152,14 @@ python scripts/sync_substances_to_core_api.py caffeine paracetamol
 
 The script calls PsychonautWiki and OpenFDA ingestors, then **POST /api/substances/sync** to create or update profiles (including `dosageJson`, `topAdverseEventsJson`, and optional `addictionPotential`). **GET /api/substances** will then return these profiles. Substances with `addictionPotential` > 7 show the Phase 3 risk warning modal on their detail page; the sync script sets this for a small set of known high-risk substances (e.g. cocaine, alcohol). Re-run sync to populate or update it.
 
+**Why do some substances get "sync failed 403"?**  
+The core-api itself does not return 403 for the sync endpoint (it permits `/api/**` and has no content blocklist). A **403 Forbidden** usually means something in front of the API is blocking the request:
+
+- **Proxy, WAF, or content filter** (e.g. corporate or school network, or a cloud WAF) that inspects the request body and blocks payloads containing certain drug names (e.g. Alcohol, Cannabis, Cocaine, LSD, MDMA, Opioids). The script sends the substance name in the JSON body, so those requests can be blocked before they reach the app.
+- **Different host or port**: If `CORE_API_URL` points at a server that applies such a filter, you’ll see 403 for those names.
+
+**What to do:** Run the sync script against core-api with no proxy in between (e.g. `CORE_API_URL=http://localhost:8080` with core-api on the same machine). If you must go through a proxy, whitelist `POST /api/substances/sync` or disable body inspection for that URL. The script prints the first 300 characters of the response body on non-2xx so you can confirm the message (e.g. "Forbidden" or a WAF reason).
+
 ---
 
 ## 5.1 Dashboard search, sort, and community comments
@@ -187,6 +195,84 @@ The **Reagent test** page (http://localhost:3000/reagent) lets users upload an i
 5. UI shows the detected hex, a horizontal bar chart of the top 3 matches, and the mandatory disclaimer: *"Colorimetric testing is presumptive and subject to contamination errors."*
 
 **API:** `POST /reagent/analyze` — body: multipart form with `image` (file). Response: `{ "hex": "#4B0082", "matches": [ {"substance": "MDMA (Marquis)", "probability": 72.1}, ... ] }`.
+
+---
+
+## 5.3 Categories, Neo4j sync, and interaction fallback
+
+**Dashboard (Postgres)** substances are categorized (Stimulant, Opioids, Benzo, Psychedelics, Dissociative, Alcohol, Cannabinoid, Depressant, SSRI, MAOI, Other) so the UI can show **Category** on each card. Categories come from a research-based mapping and heuristics in `data_ingestion/categories.py`; when syncing (e.g. `sync_substances_to_core_api.py --from-psychonautwiki`) only names in the mapping get a category. To **assign a category to every drug already in the DB**, run:
+   ```powershell
+   python scripts/assign_categories.py
+   ```
+   This uses the same mapping plus substring heuristics first; if a substance still has no category and `OPENAI_API_KEY` is set, it uses the LLM to classify into one of the categories; otherwise it sets "Other". Then re-run **Sync Postgres → Neo4j** (step 3) so Neo4j nodes get the new categories.
+
+**Neo4j** holds TripSit interaction edges and, after sync, **all** Postgres substances as nodes (with `category` and `interaction_reference`). So the interaction checker can resolve by category and by “relative” drug.
+
+**Order of operations:**
+
+1. **Load TripSit into Neo4j** (creates nodes + edges; names are lowercased):
+   ```powershell
+   python scripts/load_tripsit_to_neo4j.py
+   ```
+
+2. **Sync substances to Postgres** (with category from mapping):
+   ```powershell
+   python scripts/sync_substances_to_core_api.py --from-psychonautwiki
+   ```
+
+3. **Sync Postgres → Neo4j** (MERGE every substance as a node with category and interaction_reference):
+   ```powershell
+   python scripts/sync_postgres_to_neo4j.py
+   ```
+   Requires core-api and Neo4j running; uses `CORE_API_URL` and `NEO4J_*`.
+
+4. **Optional: backfill interaction_reference** ("most similar" drug for interaction fallback) for non–TripSit, non-opioid/benzo drugs (uses OpenAI to pick a same-category TripSit drug; writes to Postgres via PATCH by id to avoid 403):
+   - **Local:** `pip install openai` then `python scripts/populate_interaction_references.py` (requires `OPENAI_API_KEY` in `.env`).
+   - **Docker:** `docker compose run --rm -e OPENAI_API_KEY=$OPENAI_API_KEY sync python scripts/populate_interaction_references.py` (sync image has `openai`; core-api must be reachable as `core-api:8080`).
+   Then re-run step 3 so Neo4j gets the new references. The dashboard and substance detail page show **Similar drug (for interactions)** when this is set.
+
+**Interaction API behavior:**
+
+- **Every Postgres drug is a Neo4j node:** All substances in Postgres are synced to Neo4j as nodes (step 3 in 5.3) so they exist in the graph and can be displayed and used consistently.
+- **Opioids / Benzo:** For interaction checking, if a drug’s category is Opioids or Benzo (from Neo4j or, as fallback, from Postgres), the backend resolves it to the TripSit canonical name (`opioids` or `benzodiazepines`) for the Neo4j lookup. So e.g. “diazepam” + “alcohol” returns the same result as “benzodiazepines” + “alcohol”; no “similar drug” reference is needed for opioids/benzos.
+- **Relative fallback:** If there is no direct edge for A–B, the backend tries A’–B or A–B’ where A’/B’ is the substance’s `interaction_reference` (from Neo4j or from Postgres). If found, the response is `inferred: true` and the UI shows: “Interaction data may be similar to [reference].”
+- **No known effect:** If no edge and no usable relative, the API returns 200 with `no_known_effect: true` and `risk_level: "Unknown"`; the UI shows a gray “No known effects yet” box.
+
+**Core-api endpoints:**
+
+- `GET /api/substances/by-name?name=...` — fetch one profile by name.
+- `PATCH /api/substances/by-name?name=...` — body may include `"category"` and/or `"interactionReference"` (used by `assign_categories.py` and `populate_interaction_references.py`).
+
+### 5.4 Verify that the database has changed (and is it permanent?)
+
+**Check Postgres (substances, category, interaction_reference):**
+
+- **Via API:** With core-api running, open in a browser or use curl:
+  ```powershell
+  curl "http://localhost:8080/api/substances?page=0&size=5"
+  ```
+  In the JSON, look for `"category"` and `"interactionReference"` on each substance. If you ran `assign_categories.py`, many will have a category; if you ran `populate_interaction_references.py`, some will have `interactionReference`.
+- **Via database:** If you use Docker Postgres:
+  ```powershell
+  docker compose exec postgres psql -U postgres -d ifyousayyes -c "SELECT COUNT(*) AS total, COUNT(category) AS with_category, COUNT(interaction_reference) AS with_ref FROM substance_profile;"
+  ```
+  You should see non-zero counts for `with_category` and optionally `with_ref` after running the scripts.
+
+**Check Neo4j (interaction edges and substance nodes):**
+
+- In **Neo4j Aura** (or Neo4j Browser), run:
+  ```cypher
+  MATCH (n:Substance) RETURN count(n) AS substance_nodes;
+  MATCH ()-[r:INTERACTS_WITH]->() RETURN count(r) AS interaction_edges;
+  ```
+  After `load_tripsit_to_neo4j.py` you should have many `INTERACTS_WITH` edges; after `sync_postgres_to_neo4j.py` you should have more `Substance` nodes (and nodes will have `category` / `interaction_reference` if set in Postgres).
+
+**Is it permanent?**
+
+- **Yes.** Everything written by these scripts is stored in the databases (Postgres and Neo4j). You do **not** need to run the populate/sync scripts again unless you want to:
+  - **Refresh** data (e.g. TripSit or PsychonautWiki added new entries), or
+  - **Re-run** after restoring a blank database.
+- So: run once (or when you add a new DB), then leave it. Re-run only when you intentionally refresh (see section 6).
 
 ---
 

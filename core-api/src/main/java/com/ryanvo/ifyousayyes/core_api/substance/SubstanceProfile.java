@@ -44,6 +44,14 @@ public class SubstanceProfile {
 	@Column(name = "addiction_potential", precision = 3, scale = 1)
 	private BigDecimal addictionPotential;
 
+	/** Drug category for interaction resolution: Stimulant, Opioids, Benzo, Psychedelics, Dissociative, Alcohol, Cannabinoid, Depressant, SSRI, MAOI, Other. */
+	@Column(name = "category", length = 32)
+	private String category;
+
+	/** Name of a similar TripSit drug for interaction fallback (e.g. "mdma" for a novel stimulant). Null if none or if drug is well‑covered in TripSit. */
+	@Column(name = "interaction_reference", length = 128)
+	private String interactionReference;
+
 	public Long getId() {
 		return id;
 	}
@@ -106,5 +114,21 @@ public class SubstanceProfile {
 
 	public void setAddictionPotential(BigDecimal addictionPotential) {
 		this.addictionPotential = addictionPotential;
+	}
+
+	public String getCategory() {
+		return category;
+	}
+
+	public void setCategory(String category) {
+		this.category = category;
+	}
+
+	public String getInteractionReference() {
+		return interactionReference;
+	}
+
+	public void setInteractionReference(String interactionReference) {
+		this.interactionReference = interactionReference;
 	}
 }

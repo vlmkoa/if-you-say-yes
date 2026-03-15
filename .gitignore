@@ -5,3 +5,8 @@
 # Dependencies and build output
 node_modules/
 .next/
+
+# Python / pytest
+.pytest_cache/
+__pycache__/
+*.pyc

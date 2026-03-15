@@ -78,10 +78,11 @@ def main_sync(combos: Dict[str, Any]) -> None:
         with driver.session(database=database) as session:
             count = 0
             for drug_a, drug_b, status in parse_interactions(combos):
+                # Lowercase so Postgres→Neo4j sync can MERGE on same key and interaction lookup is case-insensitive
                 session.run(
                     CYPHER,
-                    drug_a=drug_a,
-                    drug_b=drug_b,
+                    drug_a=drug_a.lower(),
+                    drug_b=drug_b.lower(),
                     risk_level=status,
                     mechanism="",  # TripSit doesn't provide mechanism
                 )

@@ -14,6 +14,10 @@ export interface SubstanceProfile {
   topAdverseEventsJson?: string | null;
   /** Classification/category (e.g. stimulant, depressant). For future APIs. */
   classification?: string | null;
+  /** Drug category for interaction resolution: Stimulant, Opioids, Benzo, Psychedelics, Dissociative, Alcohol, etc. */
+  category?: string | null;
+  /** Similar TripSit drug name for interaction fallback (less popular drugs). */
+  interactionReference?: string | null;
   /** Possible effects. For future APIs. */
   effects?: string | null;
   /** Addiction potential 0–10. When &gt; 7, risk warning is shown before dosage data. */

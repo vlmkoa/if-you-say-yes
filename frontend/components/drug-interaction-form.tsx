@@ -27,10 +27,16 @@ type InteractionResponse = {
   drug_b: string;
   risk_level: string;
   mechanism: string;
+  inferred?: boolean;
+  reference_drug_a?: string | null;
+  reference_drug_b?: string | null;
+  no_known_effect?: boolean;
 };
 
 type DrugInteractionFormProps = {
   apiBaseUrl: string;
+  /** Optional: fetch substance names from core-api for dropdown (all drugs in Postgres). */
+  springApiUrl?: string;
   substances?: string[];
 };
 
@@ -101,13 +107,55 @@ function resolveBackendUrl(base: string | undefined): string {
 
 export function DrugInteractionForm({
   apiBaseUrl,
-  substances = DEFAULT_SUBSTANCES,
+  springApiUrl,
+  substances: substancesProp,
 }: DrugInteractionFormProps) {
   const [drugA, setDrugA] = React.useState("");
   const [drugB, setDrugB] = React.useState("");
   const [state, setState] = React.useState<InteractionState>({ status: "idle" });
   const [focusedField, setFocusedField] = React.useState<"a" | "b" | null>(null);
+  const [substancesFromApi, setSubstancesFromApi] = React.useState<string[]>([]);
   const backendUrl = resolveBackendUrl(apiBaseUrl);
+
+  // Load substance names from core-api for dropdown when springApiUrl is set (all pages)
+  React.useEffect(() => {
+    if (!springApiUrl?.trim()) return;
+    const base = springApiUrl.trim().replace(/\/$/, "");
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 25000);
+    let allNames: string[] = [];
+    let page = 0;
+    const size = 200;
+    function fetchPage() {
+      const url = `${base}/api/substances?page=${page}&size=${size}&sortBy=name&sortDir=asc`;
+      fetch(url, { signal: controller.signal })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data: { content?: Array<{ name?: string }>; last?: boolean } | null) => {
+          if (!data?.content?.length) {
+            if (allNames.length) setSubstancesFromApi(allNames);
+            return;
+          }
+          const names = data.content.map((s) => (s.name ?? "").trim()).filter(Boolean);
+          allNames = [...allNames, ...names];
+          if (data.last === true || data.content.length < size) {
+            setSubstancesFromApi(allNames);
+            return;
+          }
+          page += 1;
+          fetchPage();
+        })
+        .catch(() => {
+          if (allNames.length) setSubstancesFromApi(allNames);
+        });
+    }
+    fetchPage();
+    return () => {
+      clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [springApiUrl]);
+
+  const substances = substancesProp ?? (substancesFromApi.length > 0 ? substancesFromApi : DEFAULT_SUBSTANCES);
 
   const filteredSubstancesA = React.useMemo(
     () => getFiltered(substances, drugA, drugB),
@@ -246,6 +294,33 @@ export function DrugInteractionForm({
 
     const { data } = state;
     const risk = data.risk_level?.toLowerCase() ?? "";
+    const noKnownEffect = data.no_known_effect || risk === "unknown";
+    const isInferred = Boolean(data.inferred && (data.reference_drug_a || data.reference_drug_b));
+    const inferredNote = isInferred
+      ? `This result is inferred from the interaction of ${[data.reference_drug_a, data.reference_drug_b].filter(Boolean).join(" and ")}; it may not apply directly to ${data.drug_a} + ${data.drug_b}.`
+      : null;
+
+    if (noKnownEffect) {
+      return (
+        <div className="rounded-2xl border border-slate-500/30 bg-slate-700/20 p-5">
+          <div className="mb-4 flex items-center gap-3">
+            <IconAlertCircle className="h-5 w-5 text-slate-400" />
+            <span className="rounded-full border border-slate-400/30 bg-slate-500/20 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-300">
+              No known effects yet
+            </span>
+          </div>
+          <div className="space-y-3">
+            <p className="text-sm text-slate-300">
+              <span className="font-semibold text-white">Pair:</span> {data.drug_a} + {data.drug_b}
+            </p>
+            <p className="text-sm text-slate-400">
+              {data.mechanism ||
+                "No known interaction data for this combination. Colorimetric testing is presumptive; consult a professional."}
+            </p>
+          </div>
+        </div>
+      );
+    }
 
     const isDangerous =
       risk === "dangerous" || risk === "high" || risk === "contraindicated";
@@ -256,13 +331,17 @@ export function DrugInteractionForm({
     if (isDangerous) {
       return (
         <div className="rounded-2xl border border-rose-400/20 bg-rose-400/10 p-5">
-          <div className="mb-4 flex items-center gap-3">
+          <div className="mb-4 flex flex-wrap items-center gap-2">
             <IconShieldAlert className="h-5 w-5 text-rose-300" />
             <span className="rounded-full border border-rose-300/20 bg-rose-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-rose-100">
               Dangerous interaction
             </span>
+            {isInferred && (
+              <span className="rounded-full border border-amber-400/40 bg-amber-500/20 px-3 py-1 text-xs font-medium text-amber-100">
+                Inferred from similar substance
+              </span>
+            )}
           </div>
-
           <div className="space-y-3">
             <p className="text-sm text-rose-50/90">
               <span className="font-semibold text-white">Pair:</span> {data.drug_a} +{" "}
@@ -273,6 +352,11 @@ export function DrugInteractionForm({
               {data.mechanism ||
                 "This combination is flagged as dangerous in the interaction graph."}
             </p>
+            {inferredNote && (
+              <p className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+                {inferredNote}
+              </p>
+            )}
           </div>
         </div>
       );
@@ -281,13 +365,17 @@ export function DrugInteractionForm({
     if (isCaution) {
       return (
         <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 p-5">
-          <div className="mb-4 flex items-center gap-3">
+          <div className="mb-4 flex flex-wrap items-center gap-2">
             <IconTriangleAlert className="h-5 w-5 text-amber-300" />
             <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-amber-100">
               Caution advised
             </span>
+            {isInferred && (
+              <span className="rounded-full border border-slate-400/40 bg-slate-500/20 px-3 py-1 text-xs font-medium text-slate-200">
+                Inferred from similar substance
+              </span>
+            )}
           </div>
-
           <div className="space-y-3">
             <p className="text-sm text-amber-50/90">
               <span className="font-semibold text-white">Pair:</span> {data.drug_a} +{" "}
@@ -298,6 +386,11 @@ export function DrugInteractionForm({
               {data.mechanism ||
                 "Use with caution. Consider monitoring, dose adjustment, or alternatives."}
             </p>
+            {inferredNote && (
+              <p className="rounded-lg border border-slate-500/30 bg-slate-700/20 px-3 py-2 text-sm text-slate-200">
+                {inferredNote}
+              </p>
+            )}
           </div>
         </div>
       );
@@ -305,13 +398,17 @@ export function DrugInteractionForm({
 
     return (
       <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-5">
-        <div className="mb-4 flex items-center gap-3">
+        <div className="mb-4 flex flex-wrap items-center gap-2">
           <IconCheckCircle className="h-5 w-5 text-emerald-300" />
           <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-100">
             Low recorded risk
           </span>
+          {isInferred && (
+            <span className="rounded-full border border-slate-400/40 bg-slate-500/20 px-3 py-1 text-xs font-medium text-slate-200">
+              Inferred from similar substance
+            </span>
+          )}
         </div>
-
         <div className="space-y-3">
           <p className="text-sm text-emerald-50/90">
             <span className="font-semibold text-white">Pair:</span> {data.drug_a} +{" "}
@@ -322,6 +419,11 @@ export function DrugInteractionForm({
             {data.mechanism ||
               "There is no significant interaction risk recorded for this combination in the graph."}
           </p>
+          {inferredNote && (
+            <p className="rounded-lg border border-slate-500/30 bg-slate-700/20 px-3 py-2 text-sm text-slate-200">
+              {inferredNote}
+            </p>
+          )}
         </div>
       </div>
     );

@@ -1,7 +1,10 @@
 package com.ryanvo.ifyousayyes.core_api.config;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -15,10 +18,20 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @EnableWebSecurity
 public class SecurityConfig {
 
+	@Value("${app.cors.allowed-origins}")
+	private String allowedOriginsConfig;
+
 	@Bean
 	CorsConfigurationSource corsConfigurationSource() {
+		List<String> origins = Arrays.stream(allowedOriginsConfig.split(","))
+			.map(String::trim)
+			.filter(s -> !s.isEmpty())
+			.collect(Collectors.toList());
+		if (origins.isEmpty()) {
+			origins = List.of("http://localhost:3000", "http://127.0.0.1:3000");
+		}
 		CorsConfiguration config = new CorsConfiguration();
-		config.setAllowedOrigins(List.of("http://localhost:3000", "http://127.0.0.1:3000", "http://localhost", "http://127.0.0.1"));
+		config.setAllowedOrigins(origins);
 		config.setAllowedMethods(List.of("GET", "POST", "PATCH", "OPTIONS"));
 		config.setAllowedHeaders(List.of("*"));
 		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

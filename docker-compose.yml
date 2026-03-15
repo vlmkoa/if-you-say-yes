@@ -71,10 +71,15 @@ services:
       NEO4J_PASSWORD: ${NEO4J_PASSWORD:-}
       NEO4J_DATABASE: ${NEO4J_DATABASE:-neo4j}
       NEO4J_TRUST_SELF_SIGNED: ${NEO4J_TRUST_SELF_SIGNED:-}
+      # Core-API URL for Postgres fallback (category / interaction_reference when Neo4j has no node).
+      CORE_API_URL: ${CORE_API_URL:-http://core-api:8080}
       # Phase 4: reagent test vision (GPT-4o). Optional; without it /reagent/analyze returns 503.
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     ports:
       - "8000:8000"
+    depends_on:
+      core-api:
+        condition: service_healthy
     restart: unless-stopped
 
   # Python scripts (sync substances to core-api). Dependencies installed at build.

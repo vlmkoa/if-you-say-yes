@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from neo4j.exceptions import Neo4jError
 from pydantic import BaseModel, Field
 
-from .neo4j_client import get_interaction, close_driver, neo4j_available
+from .neo4j_client import get_interaction_resolved, close_driver, neo4j_available
 from .reagent_vision import extract_vision_from_image, match_hex_to_substances, ReagentVisionQuotaError
 
 
@@ -24,6 +24,10 @@ class InteractionResult(BaseModel):
     drug_b: str
     risk_level: str
     mechanism: str
+    inferred: bool = False
+    reference_drug_a: Optional[str] = None
+    reference_drug_b: Optional[str] = None
+    no_known_effect: bool = False
 
 
 class ErrorResponse(BaseModel):
@@ -96,7 +100,7 @@ async def read_interaction(
         raise HTTPException(status_code=400, detail="Both drug_a and drug_b must be non-empty strings.")
 
     try:
-        result: Optional[dict] = get_interaction(trimmed_a.lower(), trimmed_b.lower())
+        result: Optional[dict] = get_interaction_resolved(trimmed_a.lower(), trimmed_b.lower())
     except Neo4jError as e:
         logger.exception("Error while querying Neo4j for interaction.")
         raise HTTPException(
@@ -112,16 +116,23 @@ async def read_interaction(
         ) from e
 
     if result is None:
-        raise HTTPException(
-            status_code=404,
-            detail="No interaction found for the specified substances.",
+        # No interaction and no relative fallback: return 200 with "no known effects" (gray in UI)
+        return InteractionResult(
+            drug_a=trimmed_a,
+            drug_b=trimmed_b,
+            risk_level="Unknown",
+            mechanism="No known interaction data for this combination. Colorimetric testing is presumptive; consult a professional.",
+            no_known_effect=True,
         )
 
     return InteractionResult(
         drug_a=trimmed_a,
         drug_b=trimmed_b,
-        risk_level=str(result.get("risk_level")),
-        mechanism=str(result.get("mechanism")),
+        risk_level=str(result.get("risk_level") or ""),
+        mechanism=str(result.get("mechanism") or ""),
+        inferred=bool(result.get("inferred")),
+        reference_drug_a=result.get("reference_drug_a"),
+        reference_drug_b=result.get("reference_drug_b"),
     )
 
 

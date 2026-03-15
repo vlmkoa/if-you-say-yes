@@ -40,6 +40,7 @@ except ImportError:
     pass
 
 from data_ingestion import OpenFDAIngestor, PsychonautWikiIngestor
+from data_ingestion.categories import get_category
 
 CORE_API_URL = os.getenv("CORE_API_URL", "http://localhost:8080")
 SYNC_ENDPOINT = f"{CORE_API_URL}/api/substances/sync"
@@ -84,6 +85,7 @@ async def sync_one(
     bioavailability: float | None = None,
     addiction_potential: float | None = None,
 ) -> bool:
+    category = get_category(name) if name else None
     payload = {
         "name": name,
         "dosageJson": dosage_json,
@@ -91,10 +93,13 @@ async def sync_one(
         "halfLife": round(half_life, 2) if half_life is not None else None,
         "bioavailability": round(bioavailability, 2) if bioavailability is not None else None,
         "addictionPotential": round(addiction_potential, 1) if addiction_potential is not None else None,
+        "category": category,
+        "interactionReference": None,
     }
     r = await client.post(SYNC_ENDPOINT, json=payload, timeout=TIMEOUT)
     if r.status_code != 200:
-        print(f"  {name}: sync failed {r.status_code} {r.text[:200]}")
+        body = (r.text or "")[:300]
+        print(f"  {name}: sync failed {r.status_code} {body}")
         return False
     print(f"  {name}: synced")
     return True

@@ -220,6 +220,18 @@ export function SubstanceProfilePage({ id }: { id: string }) {
                 <dd className="font-medium text-stone-700">{profile.addictionPotential}/10</dd>
               </div>
             )}
+            {profile.category && (
+              <div className="flex justify-between gap-4">
+                <dt className="text-stone-500">Category</dt>
+                <dd className="font-medium text-stone-700">{profile.category}</dd>
+              </div>
+            )}
+            {profile.interactionReference && (
+              <div className="flex justify-between gap-4">
+                <dt className="text-stone-500">Similar drug for interactions</dt>
+                <dd className="font-medium text-stone-700 capitalize">{profile.interactionReference}</dd>
+              </div>
+            )}
             {profile.standardDosage && (
               <div>
                 <dt className="text-stone-500">Standard dosage</dt>

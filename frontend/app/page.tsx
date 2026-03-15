@@ -6,6 +6,10 @@ const BACKEND_URL =
   (typeof process.env.NEXT_PUBLIC_BACKEND_URL === "string" && process.env.NEXT_PUBLIC_BACKEND_URL.trim())
     ? process.env.NEXT_PUBLIC_BACKEND_URL.trim()
     : "http://localhost:8000";
+const SPRING_API_URL =
+  (typeof process.env.NEXT_PUBLIC_SPRING_API_URL === "string" && process.env.NEXT_PUBLIC_SPRING_API_URL.trim())
+    ? process.env.NEXT_PUBLIC_SPRING_API_URL.trim()
+    : "http://localhost:8080";
 
 function IconShield({ className }: { className?: string }) {
   return (
@@ -123,7 +127,7 @@ export default function HomePage() {
               </p>
             </div>
 
-            <DrugInteractionForm apiBaseUrl={BACKEND_URL} />
+            <DrugInteractionForm apiBaseUrl={BACKEND_URL} springApiUrl={SPRING_API_URL} />
           </div>
         </div>
       </section>

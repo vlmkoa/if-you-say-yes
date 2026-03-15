@@ -91,9 +91,15 @@ function SubstanceCard({ profile }: { profile: ReturnType<typeof normalizeProfil
           <dd className="font-medium text-stone-700">{formatBioavailability(profile.bioavailabilityNum)}</dd>
         </div>
         <div className="flex justify-between gap-2">
-          <dt className="text-stone-500">Classification</dt>
-          <dd className="font-medium text-stone-700">{profile.classification ?? "—"}</dd>
+          <dt className="text-stone-500">Category</dt>
+          <dd className="font-medium text-stone-700">{profile.category ?? profile.classification ?? "—"}</dd>
         </div>
+        {profile.interactionReference && (
+          <div className="flex justify-between gap-2">
+            <dt className="text-stone-500">Similar drug (interactions)</dt>
+            <dd className="font-medium text-stone-700 capitalize">{profile.interactionReference}</dd>
+          </div>
+        )}
         {profile.standardDosage && (
           <div>
             <dt className="text-stone-500">Standard dosage</dt>
