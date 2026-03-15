@@ -18,6 +18,11 @@ public class SubstanceProfileService {
 	}
 
 	@Transactional(readOnly = true)
+	public Optional<SubstanceProfile> findById(Long id) {
+		return repository.findById(id);
+	}
+
+	@Transactional(readOnly = true)
 	public Page<SubstanceProfile> findAll(Pageable pageable) {
 		return repository.findAllByOrderByNameAsc(pageable);
 	}

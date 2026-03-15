@@ -40,6 +40,10 @@ public class SubstanceProfile {
 	@Column(name = "top_adverse_events_json", columnDefinition = "TEXT")
 	private String topAdverseEventsJson;
 
+	/** Addiction potential 0–10 scale (e.g. 7). Used to trigger risk warning in UX. */
+	@Column(name = "addiction_potential", precision = 3, scale = 1)
+	private BigDecimal addictionPotential;
+
 	public Long getId() {
 		return id;
 	}
@@ -94,5 +98,13 @@ public class SubstanceProfile {
 
 	public void setTopAdverseEventsJson(String topAdverseEventsJson) {
 		this.topAdverseEventsJson = topAdverseEventsJson;
+	}
+
+	public BigDecimal getAddictionPotential() {
+		return addictionPotential;
+	}
+
+	public void setAddictionPotential(BigDecimal addictionPotential) {
+		this.addictionPotential = addictionPotential;
 	}
 }
