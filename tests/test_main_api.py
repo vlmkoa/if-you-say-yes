@@ -10,9 +10,9 @@ from backend.main import app
 client = TestClient(app)
 
 
-@patch("backend.main.get_interaction")
-def test_interaction_success(get_interaction_mock: MagicMock) -> None:
-    get_interaction_mock.return_value = {
+@patch("backend.main.get_interaction_resolved")
+def test_interaction_success(get_interaction_resolved_mock: MagicMock) -> None:
+    get_interaction_resolved_mock.return_value = {
         "risk_level": "Dangerous",
         "mechanism": "CYP3A4 inhibition",
     }
@@ -32,19 +32,21 @@ def test_interaction_missing_param_validation() -> None:
     assert response.status_code == 422  # FastAPI validation for missing required param
 
 
-@patch("backend.main.get_interaction")
-def test_interaction_not_found(get_interaction_mock: MagicMock) -> None:
-    get_interaction_mock.return_value = None
+@patch("backend.main.get_interaction_resolved")
+def test_interaction_not_found(get_interaction_resolved_mock: MagicMock) -> None:
+    get_interaction_resolved_mock.return_value = None
 
     response = client.get("/interaction", params={"drug_a": "A", "drug_b": "B"})
 
-    assert response.status_code == 404
-    assert response.json()["detail"] == "No interaction found for the specified substances."
+    assert response.status_code == 200
+    data = response.json()
+    assert data.get("no_known_effect") is True
+    assert data.get("risk_level") == "Unknown"
 
 
-@patch("backend.main.get_interaction")
-def test_interaction_handles_neo4j_error(get_interaction_mock: MagicMock) -> None:
-    get_interaction_mock.side_effect = Neo4jError("boom")
+@patch("backend.main.get_interaction_resolved")
+def test_interaction_handles_neo4j_error(get_interaction_resolved_mock: MagicMock) -> None:
+    get_interaction_resolved_mock.side_effect = Neo4jError("boom")
 
     response = client.get("/interaction", params={"drug_a": "A", "drug_b": "B"})
 
