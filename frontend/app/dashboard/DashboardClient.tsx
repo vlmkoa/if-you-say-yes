@@ -78,8 +78,9 @@ function SubstanceCard({ profile }: { profile: ReturnType<typeof normalizeProfil
     adverseSummary;
 
   return (
-    <article className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
-      <h2 className="text-base font-semibold text-stone-800 capitalize">{profile.name}</h2>
+    <Link href={`/dashboard/${profile.id}`} className="block">
+      <article className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md hover:border-stone-300">
+        <h2 className="text-base font-semibold text-stone-800 capitalize">{profile.name}</h2>
       <dl className="mt-3 space-y-2 text-sm">
         <div className="flex justify-between gap-2">
           <dt className="text-stone-500">Half-life</dt>
@@ -119,7 +120,8 @@ function SubstanceCard({ profile }: { profile: ReturnType<typeof normalizeProfil
       {!hasKnownData && (
         <p className="mt-2 text-xs text-stone-400">Sync dosage/adverse data via sync script for more detail.</p>
       )}
-    </article>
+      </article>
+    </Link>
   );
 }
 

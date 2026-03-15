@@ -16,6 +16,8 @@ export interface SubstanceProfile {
   classification?: string | null;
   /** Possible effects. For future APIs. */
   effects?: string | null;
+  /** Addiction potential 0–10. When &gt; 7, risk warning is shown before dosage data. */
+  addictionPotential?: number | null;
 }
 
 export interface PagedSubstances {
