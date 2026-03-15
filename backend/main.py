@@ -35,11 +35,12 @@ app = FastAPI(
 )
 
 
-# Allow local Next.js dev by default; adjust origins as needed.
+# Allow any origin so the frontend health check works regardless of host (localhost, 127.0.0.1, IP, etc.).
+# credentials=False is required when using allow_origins=["*"]; we don't need cookies for /health or /interaction.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

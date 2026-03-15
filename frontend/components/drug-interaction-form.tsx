@@ -1,8 +1,20 @@
 "use client";
 
 import * as React from "react";
+import { useEffect, useState, useMemo } from "react";
 
 import { Input, Button, Label, Alert, AlertDescription, AlertTitle } from "./ui";
+
+async function checkBackendHealth(apiBaseUrl: string): Promise<boolean> {
+  const url = `${apiBaseUrl.replace(/\/$/, "")}/health`;
+  try {
+    const res = await fetch(url, { method: "GET", mode: "cors" });
+    return res.ok;
+  } catch (e) {
+    console.warn("[DrugInteractionForm] Health check failed:", url, e);
+    return false;
+  }
+}
 
 const AlertCircle = (props: any) => <span {...props} />;
 const Info = (props: any) => <span {...props} />;
@@ -49,8 +61,28 @@ export function DrugInteractionForm({
   const [drugA, setDrugA] = React.useState("");
   const [drugB, setDrugB] = React.useState("");
   const [state, setState] = React.useState({ status: "idle" } as InteractionState);
+  const [backendUnavailable, setBackendUnavailable] = React.useState<boolean | null>(null);
 
   const [focusedField, setFocusedField] = React.useState<"a" | "b" | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    let retryTimeout: ReturnType<typeof setTimeout> | null = null;
+    const run = (isRetry = false) => {
+      checkBackendHealth(apiBaseUrl).then((ok) => {
+        if (cancelled) return;
+        setBackendUnavailable(!ok);
+        if (!ok && !isRetry) {
+          retryTimeout = setTimeout(() => run(true), 3000);
+        }
+      });
+    };
+    run();
+    return () => {
+      cancelled = true;
+      if (retryTimeout) clearTimeout(retryTimeout);
+    };
+  }, [apiBaseUrl]);
 
   const filteredSubstancesA = React.useMemo(
     () =>
@@ -108,6 +140,7 @@ export function DrugInteractionForm({
 
       const data: InteractionResponse = await res.json();
       setState({ status: "success", data });
+      setBackendUnavailable(false);
     } catch (error) {
       console.error("Failed to fetch interaction", error);
       setState({
@@ -232,6 +265,26 @@ export function DrugInteractionForm({
 
   return (
     <div className="space-y-4 rounded-lg border bg-card p-4 shadow-sm">
+      {backendUnavailable === true && (
+        <Alert className="border-amber-500/80 bg-amber-50 text-amber-900">
+          <TriangleAlert className="h-4 w-4" />
+          <AlertTitle>Interaction check temporarily unavailable</AlertTitle>
+          <AlertDescription className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span>The interaction service (Neo4j) may be offline or unreachable.</span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="shrink-0"
+              onClick={() => {
+                checkBackendHealth(apiBaseUrl).then((ok) => setBackendUnavailable(!ok));
+              }}
+            >
+              Check again
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2">
           <div>
@@ -279,7 +332,7 @@ export function DrugInteractionForm({
           <p className="text-xs text-muted-foreground">
             Graph-backed interaction engine. Results do not replace clinical judgment.
           </p>
-          <Button type="submit" disabled={state.status === "loading"}>
+          <Button type="submit" disabled={state.status === "loading" || backendUnavailable === true}>
             {state.status === "loading" ? "Checking…" : "Check interaction"}
           </Button>
         </div>

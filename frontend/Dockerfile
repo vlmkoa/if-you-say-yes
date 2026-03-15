@@ -11,6 +11,9 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN mkdir -p public
 ENV NEXT_TELEMETRY_DISABLED=1
+# Optional: pass NEXT_PUBLIC_BACKEND_URL when building for nginx (e.g. --build-arg NEXT_PUBLIC_BACKEND_URL=http://localhost/api/backend)
+ARG NEXT_PUBLIC_BACKEND_URL
+ENV NEXT_PUBLIC_BACKEND_URL=${NEXT_PUBLIC_BACKEND_URL}
 RUN npm run build
 
 # Run

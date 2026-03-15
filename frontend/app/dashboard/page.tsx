@@ -27,6 +27,9 @@ export default async function DashboardPage() {
           <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">
             <p className="font-medium">Error loading data</p>
             <p className="mt-1 text-sm">{error}</p>
+            <p className="mt-2 text-xs text-red-600">
+              If using Docker, run <code className="bg-red-100 px-1 rounded">docker compose ps</code> and ensure <strong>core-api</strong> and <strong>postgres</strong> are Up. Then reload this page.
+            </p>
           </div>
         </main>
       </div>

@@ -87,6 +87,14 @@ If Neo4j is off (e.g. AuraDB free instance sleeping, laptop closed, or local Neo
 - **GET /interaction** returns **503** with a message that the interaction service is temporarily unavailable. The app does not crash.
 - **GET /health** (http://localhost:8000/health) returns **503** when Neo4j is unreachable and **200** when it is reachable. The frontend can call this to show “Interaction check temporarily unavailable” instead of a generic error.
 - Once Neo4j is back and reachable, the backend works again without restart (the next request will succeed).
+- **Frontend:** The interaction form calls **GET /health** on load. If the backend is unavailable, it shows an amber banner (“Interaction check temporarily unavailable”) and disables the Check button. On 503 from **GET /interaction** it shows the same message.
+
+### When PostgreSQL / core-api is not available
+
+If PostgreSQL is down or core-api cannot reach it:
+
+- **GET /api/substances** and **POST /api/substances/sync** may return 500 or 503. **GET /actuator/health** (http://localhost:8080/actuator/health) returns **503** when the app or DB is down, **200** when up.
+- **Frontend:** The dashboard shows “Substance list temporarily unavailable. The database may be offline.” when the substances API returns 500 or 503.
 
 ---
 
@@ -140,3 +148,33 @@ python scripts/refresh_data.py --core-api
 ```
 
 Ensure Neo4j and core-api are running (or reachable) when the job runs. If Neo4j is down, the Neo4j step is skipped or fails; core-api sync can still run.
+
+---
+
+## 7. Optional: Nginx reverse proxy
+
+Using Nginx gives a **single entry point** (port 80), can simplify deployment, and allows SSL termination and rate limiting later.
+
+**When it helps:** One hostname/port for the app; the browser talks only to Nginx (same origin for the interaction form if you set the backend path under Nginx). Useful for production-like setups or when you don’t want to expose multiple ports.
+
+**Run with Nginx:**
+
+```powershell
+docker compose --profile nginx up -d --build
+```
+
+Then open **http://localhost** (port 80). Nginx proxies:
+
+- **/** → frontend (Next.js)
+- **/api/backend/** → Python backend (e.g. `/api/backend/interaction`, `/api/backend/health`)
+
+**Interaction form behind Nginx:** The form must call the backend via Nginx so the request is same-origin. Build the frontend with the backend base URL under Nginx:
+
+```powershell
+cd frontend
+docker build --build-arg NEXT_PUBLIC_BACKEND_URL=http://localhost/api/backend -t ifyousayyes-frontend .
+```
+
+Or set `NEXT_PUBLIC_BACKEND_URL=http://localhost/api/backend` in your env before `npm run build`. Then the form will request `http://localhost/api/backend/health` and `http://localhost/api/backend/interaction` when you use the app at http://localhost.
+
+**Without Nginx:** Use http://localhost:3000 (frontend), http://localhost:8000 (backend), http://localhost:8080 (core-api) as described in section 2. No build-arg change needed.

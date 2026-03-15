@@ -17,11 +17,23 @@ export async function fetchSubstances(options?: {
   url.searchParams.set("sortBy", sortBy);
   url.searchParams.set("sortDir", sortDir);
 
-  const res = await fetch(url.toString(), {
-    next: { revalidate: 30 },
-  });
+  let res: Response;
+  try {
+    res = await fetch(url.toString(), {
+      next: { revalidate: 30 },
+      signal: AbortSignal.timeout(15000),
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    throw new Error(
+      `Dashboard could not reach core-api at ${url.origin}. ${msg}. Ensure core-api is running (e.g. docker compose ps).`
+    );
+  }
 
   if (!res.ok) {
+    if (res.status === 503 || res.status === 500) {
+      throw new Error("Substance list temporarily unavailable. The database may be offline.");
+    }
     throw new Error(`Substances API error: ${res.status}`);
   }
 

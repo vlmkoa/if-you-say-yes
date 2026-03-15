@@ -14,6 +14,7 @@ RUN ./mvnw package -DskipTests -B
 
 # Run stage
 FROM eclipse-temurin:21-jre-alpine
+RUN apk add --no-cache curl
 WORKDIR /app
 
 RUN adduser -D -u 1000 appuser

@@ -30,6 +30,7 @@ declare module "react" {
 
   export function useState<S>(initial: S): [S, (value: S) => void];
   export function useMemo<T>(factory: () => T, deps: any[]): T;
+  export function useEffect(effect: () => void | (() => void), deps?: any[]): void;
 }
 
 declare module "lucide-react" {
