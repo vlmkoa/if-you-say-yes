@@ -126,8 +126,8 @@ export default function HomePage() {
       </section>
 
       <section className="app-shell pb-12 sm:pb-16 md:pb-24">
-        <div className="glass-card grid gap-5 p-5 sm:gap-6 sm:p-6 md:grid-cols-3 md:p-8">
-          <div>
+        <div className="glass-card grid gap-5 p-5 sm:gap-6 sm:p-6 md:grid-cols-2 lg:grid-cols-4 md:p-8">
+          <div className="lg:col-span-1">
             <p className="soft-label mb-2">How to read results</p>
             <h3 className="text-lg font-semibold text-white sm:text-xl">Risk levels</h3>
           </div>
@@ -136,7 +136,7 @@ export default function HomePage() {
             <span className="pill border-emerald-400/30 bg-emerald-400/10 text-emerald-200">
               Low / none recorded
             </span>
-            <p className="mt-3 text-sm leading-6 text-slate-400">
+            <p className="mt-3 text-sm leading-6 text-slate-300">
               No significant interaction recorded in the graph for the chosen pair.
             </p>
           </div>
@@ -145,8 +145,17 @@ export default function HomePage() {
             <span className="pill border-amber-400/30 bg-amber-400/10 text-amber-200">
               Caution
             </span>
-            <p className="mt-3 text-sm leading-6 text-slate-400">
+            <p className="mt-3 text-sm leading-6 text-slate-300">
               Monitoring, dose adjustment, or alternatives may be needed depending on context.
+            </p>
+          </div>
+
+          <div className="metric-card">
+            <span className="pill border-rose-400/40 bg-rose-500/20 text-rose-200">
+              Dangerous
+            </span>
+            <p className="mt-3 text-sm leading-6 text-slate-300">
+              This combination is flagged as high risk. Avoid or seek clinical guidance before use.
             </p>
           </div>
         </div>
