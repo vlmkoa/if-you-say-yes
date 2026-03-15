@@ -71,6 +71,8 @@ services:
       NEO4J_PASSWORD: ${NEO4J_PASSWORD:-}
       NEO4J_DATABASE: ${NEO4J_DATABASE:-neo4j}
       NEO4J_TRUST_SELF_SIGNED: ${NEO4J_TRUST_SELF_SIGNED:-}
+      # Phase 4: reagent test vision (GPT-4o). Optional; without it /reagent/analyze returns 503.
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     ports:
       - "8000:8000"
     restart: unless-stopped

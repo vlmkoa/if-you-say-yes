@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { DrugInteractionForm } from "@/components/drug-interaction-form";
 
+// Must be a valid base URL or fetch throws. Empty string / undefined at build time can break client.
 const BACKEND_URL =
-  process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8000";
+  (typeof process.env.NEXT_PUBLIC_BACKEND_URL === "string" && process.env.NEXT_PUBLIC_BACKEND_URL.trim())
+    ? process.env.NEXT_PUBLIC_BACKEND_URL.trim()
+    : "http://localhost:8000";
 
 function IconShield({ className }: { className?: string }) {
   return (

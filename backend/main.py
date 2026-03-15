@@ -1,12 +1,14 @@
 import logging
+import os
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from neo4j.exceptions import Neo4jError
 from pydantic import BaseModel, Field
 
 from .neo4j_client import get_interaction, close_driver, neo4j_available
+from .reagent_vision import extract_vision_from_image, match_hex_to_substances, ReagentVisionQuotaError
 
 
 logger = logging.getLogger("drug-interaction-api")
@@ -97,10 +99,16 @@ async def read_interaction(
         result: Optional[dict] = get_interaction(trimmed_a.lower(), trimmed_b.lower())
     except Neo4jError as e:
         logger.exception("Error while querying Neo4j for interaction.")
-        # 503 when Neo4j is unreachable (e.g. AuraDB sleeping, network down)
         raise HTTPException(
             status_code=503,
             detail="Interaction service temporarily unavailable. Neo4j may be offline or unreachable.",
+        ) from e
+    except RuntimeError as e:
+        # get_driver() raises when NEO4J_URI / NEO4J_USERNAME / NEO4J_PASSWORD are missing
+        logger.warning("Neo4j not configured: %s", e)
+        raise HTTPException(
+            status_code=503,
+            detail="Interaction service not configured. Set NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD and run scripts/load_tripsit_to_neo4j.py to load data.",
         ) from e
 
     if result is None:
@@ -115,6 +123,71 @@ async def read_interaction(
         risk_level=str(result.get("risk_level")),
         mechanism=str(result.get("mechanism")),
     )
+
+
+# --- Phase 4: Reagent test analysis (vision + color matching) ---
+
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
+
+
+@app.post(
+    "/reagent/analyze",
+    summary="Analyze reagent test image (vision + color match)",
+    responses={
+        200: {"description": "Hex extracted and top-3 substance matches returned."},
+        400: {"model": ErrorResponse, "description": "Invalid or missing image."},
+        503: {"model": ErrorResponse, "description": "Vision API not configured or failed."},
+    },
+)
+async def reagent_analyze(
+    image: UploadFile = File(..., description="Reagent test result image"),
+    prompt: str = Form("", description="Optional: your description of what is in the image (e.g. reagent name, which tube)."),
+) -> dict:
+    """
+    Accept multipart image upload (reagent drug test) and optional user description.
+    Extract hex color via vision LLM (using the description to label tubes/reagents when possible),
+    then return top-3 closest substance matches by Euclidean distance in RGB space.
+    """
+    if image.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported type. Use one of: {', '.join(ALLOWED_IMAGE_TYPES)}",
+        )
+    body = await image.read()
+    if not body or len(body) > 10 * 1024 * 1024:  # 10 MB
+        raise HTTPException(status_code=400, detail="Image empty or too large (max 10 MB).")
+
+    api_key = (os.getenv("OPENAI_API_KEY") or "").strip()
+    if not api_key:
+        raise HTTPException(
+            status_code=503,
+            detail="OPENAI_API_KEY is not set. Add OPENAI_API_KEY=sk-... to your .env file (project root), then restart the backend: docker compose up -d backend.",
+        )
+
+    user_prompt = (prompt or "").strip() or None
+    try:
+        vision = await extract_vision_from_image(body, user_prompt=user_prompt)
+    except ReagentVisionQuotaError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
+
+    if vision is None or not vision.get("colors"):
+        raise HTTPException(
+            status_code=503,
+            detail="Could not extract color from this image. Use a clear photo of a reagent test (test tube or kit with visible liquid color). If the key is set, check backend logs for API errors.",
+        )
+
+    colors_out = []
+    for c in vision["colors"]:
+        hex_code = c.get("hex")
+        if not hex_code:
+            continue
+        matches = match_hex_to_substances(hex_code, top_k=3)
+        colors_out.append({"hex": hex_code, "label": c.get("label"), "matches": matches})
+    return {
+        "description": vision.get("description"),
+        "labels": vision.get("labels") or [],
+        "colors": colors_out,
+    }
 
 
 if __name__ == "__main__":

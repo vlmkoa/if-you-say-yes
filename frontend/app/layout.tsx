@@ -48,6 +48,12 @@ export default function RootLayout({
                 >
                   Dashboard
                 </Link>
+                <Link
+                  href="/reagent"
+                  className="rounded-lg px-3 py-2 text-slate-400 transition-colors hover:bg-white/5 hover:text-white sm:px-4"
+                >
+                  Reagent test
+                </Link>
               </nav>
             </div>
           </header>

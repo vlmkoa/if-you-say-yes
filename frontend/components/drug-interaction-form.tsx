@@ -1,15 +1,26 @@
 "use client";
 
 import * as React from "react";
-import {
-  AlertCircle,
-  ArrowLeftRight,
-  CheckCircle2,
-  Loader2,
-  Search,
-  ShieldAlert,
-  TriangleAlert,
-} from "lucide-react";
+
+// Inline SVGs (lucide-react 0.460 lacks ArrowLeftRight, ShieldAlert, etc.)
+type SvgProps = { className?: string };
+const svg = (d: string, viewBox = "0 0 24 24") => ({ className, ...p }: SvgProps) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox={viewBox} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden {...p}><path d={d} /></svg>
+);
+const IconLoader = ({ className, ...p }: SvgProps) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden {...p}><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>
+);
+const IconCheckCircle = ({ className, ...p }: SvgProps) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden {...p}>
+    <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
+    <path d="m9 12 2 2 4-4" />
+  </svg>
+);
+const IconAlertCircle = svg("M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z M12 8v4 M12 16h.01");
+const IconShieldAlert = svg("M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z");
+const IconTriangleAlert = svg("m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z M12 9v4 M12 17h.01");
+const IconSearch = svg("m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z");
+const IconArrowLeftRight = svg("M16 3h5v5 M4 20L21 3 M21 16v5h-5 M15 15l6 6 M4 4l5 5");
 
 type InteractionResponse = {
   drug_a: string;
@@ -30,6 +41,7 @@ type InteractionState =
   | { status: "error"; message: string }
   | { status: "success"; data: InteractionResponse };
 
+// Clinical + TripSit-style names so autocomplete matches Neo4j (TripSit combos). Lookup is case-insensitive.
 const DEFAULT_SUBSTANCES: string[] = [
   "Warfarin",
   "Ibuprofen",
@@ -38,6 +50,36 @@ const DEFAULT_SUBSTANCES: string[] = [
   "Atorvastatin",
   "Metformin",
   "Omeprazole",
+  "alcohol",
+  "caffeine",
+  "cannabis",
+  "cocaine",
+  "lsd",
+  "mdma",
+  "ketamine",
+  "dmt",
+  "benzodiazepines",
+  "amphetamines",
+  "tramadol",
+  "opioids",
+  "ssris",
+  "maois",
+  "mushrooms",
+  "nitrous",
+  "mescaline",
+  "dextromethorphan",
+  "lithium",
+  "ghb",
+  "gbl",
+  "pcp",
+  "2c-x",
+  "2c-t-x",
+  "5-meo-dmt",
+  "amt",
+  "dox",
+  "mxe",
+  "nbomes",
+  "pregabalin",
 ];
 
 function getFiltered(items: string[], value: string, otherValue: string) {
@@ -49,6 +91,14 @@ function getFiltered(items: string[], value: string, otherValue: string) {
     .slice(0, 6);
 }
 
+const FALLBACK_BACKEND = "http://localhost:8000";
+
+function resolveBackendUrl(base: string | undefined): string {
+  const s = typeof base === "string" ? base.trim() : "";
+  if (s && s.startsWith("http")) return s;
+  return FALLBACK_BACKEND;
+}
+
 export function DrugInteractionForm({
   apiBaseUrl,
   substances = DEFAULT_SUBSTANCES,
@@ -57,6 +107,7 @@ export function DrugInteractionForm({
   const [drugB, setDrugB] = React.useState("");
   const [state, setState] = React.useState<InteractionState>({ status: "idle" });
   const [focusedField, setFocusedField] = React.useState<"a" | "b" | null>(null);
+  const backendUrl = resolveBackendUrl(apiBaseUrl);
 
   const filteredSubstancesA = React.useMemo(
     () => getFiltered(substances, drugA, drugB),
@@ -68,7 +119,7 @@ export function DrugInteractionForm({
     [substances, drugB, drugA]
   );
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
 
     const trimmedA = drugA.trim();
@@ -92,40 +143,42 @@ export function DrugInteractionForm({
 
     setState({ status: "loading" });
 
-    try {
-      const url = new URL("/interaction", apiBaseUrl);
-      url.searchParams.set("drug_a", trimmedA);
-      url.searchParams.set("drug_b", trimmedB);
+    void (async () => {
+      try {
+        const url = new URL("/interaction", backendUrl);
+        url.searchParams.set("drug_a", trimmedA);
+        url.searchParams.set("drug_b", trimmedB);
 
-      const res = await fetch(url.toString(), { method: "GET" });
+        const res = await fetch(url.toString(), { method: "GET" });
 
-      if (res.status === 404) {
-        setState({ status: "not_found" });
-        return;
-      }
+        if (res.status === 404) {
+          setState({ status: "not_found" });
+          return;
+        }
 
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        const detail =
-          (body as { detail?: string } | null)?.detail ??
-          "Unexpected error while checking interaction.";
+        if (!res.ok) {
+          const body = await res.json().catch(() => null);
+          const detail =
+            (body as { detail?: string } | null)?.detail ??
+            "Unexpected error while checking interaction.";
 
+          setState({
+            status: "error",
+            message: detail,
+          });
+          return;
+        }
+
+        const data: InteractionResponse = await res.json();
+        setState({ status: "success", data });
+      } catch (error) {
+        console.error("Failed to fetch interaction", error);
         setState({
           status: "error",
-          message: detail,
+          message: "Unable to reach the interaction service. Please try again.",
         });
-        return;
       }
-
-      const data: InteractionResponse = await res.json();
-      setState({ status: "success", data });
-    } catch (error) {
-      console.error("Failed to fetch interaction", error);
-      setState({
-        status: "error",
-        message: "Unable to reach the interaction service. Please try again.",
-      });
-    }
+    })();
   }
 
   function swapValues() {
@@ -148,7 +201,7 @@ export function DrugInteractionForm({
       return (
         <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-4">
           <div className="flex items-start gap-3">
-            <Loader2 className="mt-0.5 h-5 w-5 animate-spin text-cyan-300" />
+            <IconLoader className="mt-0.5 h-5 w-5 animate-spin text-cyan-300" />
             <div>
               <p className="font-medium text-cyan-100">Checking interaction</p>
               <p className="mt-1 text-sm text-cyan-50/80">
@@ -164,7 +217,7 @@ export function DrugInteractionForm({
       return (
         <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4">
           <div className="flex items-start gap-3">
-            <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-300" />
+            <IconCheckCircle className="mt-0.5 h-5 w-5 text-emerald-300" />
             <div>
               <p className="font-medium text-emerald-100">No known interaction</p>
               <p className="mt-1 text-sm text-emerald-50/80">
@@ -181,7 +234,7 @@ export function DrugInteractionForm({
       return (
         <div className="rounded-2xl border border-rose-400/20 bg-rose-400/10 p-4">
           <div className="flex items-start gap-3">
-            <AlertCircle className="mt-0.5 h-5 w-5 text-rose-300" />
+            <IconAlertCircle className="mt-0.5 h-5 w-5 text-rose-300" />
             <div>
               <p className="font-medium text-rose-100">Something went wrong</p>
               <p className="mt-1 text-sm text-rose-50/80">{state.message}</p>
@@ -204,7 +257,7 @@ export function DrugInteractionForm({
       return (
         <div className="rounded-2xl border border-rose-400/20 bg-rose-400/10 p-5">
           <div className="mb-4 flex items-center gap-3">
-            <ShieldAlert className="h-5 w-5 text-rose-300" />
+            <IconShieldAlert className="h-5 w-5 text-rose-300" />
             <span className="rounded-full border border-rose-300/20 bg-rose-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-rose-100">
               Dangerous interaction
             </span>
@@ -229,7 +282,7 @@ export function DrugInteractionForm({
       return (
         <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 p-5">
           <div className="mb-4 flex items-center gap-3">
-            <TriangleAlert className="h-5 w-5 text-amber-300" />
+            <IconTriangleAlert className="h-5 w-5 text-amber-300" />
             <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-amber-100">
               Caution advised
             </span>
@@ -253,7 +306,7 @@ export function DrugInteractionForm({
     return (
       <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-5">
         <div className="mb-4 flex items-center gap-3">
-          <CheckCircle2 className="h-5 w-5 text-emerald-300" />
+          <IconCheckCircle className="h-5 w-5 text-emerald-300" />
           <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-100">
             Low recorded risk
           </span>
@@ -290,7 +343,7 @@ export function DrugInteractionForm({
             onClick={() => onSelect(item)}
             className="flex w-full items-center gap-3 border-b border-slate-700/80 px-4 py-3 text-left text-sm font-medium text-white transition last:border-b-0 hover:bg-slate-700/50"
           >
-            <Search className="h-4 w-4 shrink-0 text-cyan-400" />
+            <IconSearch className="h-4 w-4 shrink-0 text-cyan-400" />
             <span>{item}</span>
           </button>
         ))}
@@ -337,7 +390,7 @@ export function DrugInteractionForm({
           className="inline-flex h-12 w-12 items-center justify-center self-end rounded-2xl border border-white/10 bg-white/5 text-slate-200 transition hover:bg-white/10"
           aria-label="Swap substances"
         >
-          <ArrowLeftRight className="h-4 w-4" />
+          <IconArrowLeftRight className="h-4 w-4" />
         </button>
 
         <div className="relative">

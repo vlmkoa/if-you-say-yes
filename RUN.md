@@ -169,6 +169,27 @@ Set `MODERATION_API_KEY` in the environment (or in `application.properties`) so 
 
 ---
 
+## 5.2 Phase 4: Reagent test analysis (chatbot)
+
+The **Reagent test** page (http://localhost:3000/reagent) lets users upload an image of a reagent drug test result. The backend uses a **vision LLM (GPT-4o)** to extract only the **hex color** of the liquid in the test tube (the LLM does not guess the drug). A **deterministic** step then matches that hex to a predefined set of reagent reaction colors using Euclidean distance in RGB space and returns the **top 3** substance matches with probability percentages, shown as a horizontal bar chart in the chat.
+
+**Requirements:**
+
+- **OPENAI_API_KEY** must be set for the backend (e.g. in `.env`). Without it, **POST /reagent/analyze** returns 503.
+- Backend runs on port 8000; frontend calls `NEXT_PUBLIC_BACKEND_URL` (default http://localhost:8000).
+
+**Flow:**
+
+1. User opens **Reagent test** in the nav, uploads an image (JPEG, PNG or WebP, max 10 MB).
+2. Frontend sends the image to **POST /reagent/analyze** (multipart).
+3. Backend sends the image to GPT-4o with a strict system prompt: return only a JSON object `{"hex": "#RRGGBB"}`.
+4. Backend runs deterministic color matching (Euclidean distance in RGB to a predefined reagent color dictionary) and returns `{ "hex": "#...", "matches": [ { "substance": "...", "probability": 85.2 }, ... ] }`.
+5. UI shows the detected hex, a horizontal bar chart of the top 3 matches, and the mandatory disclaimer: *"Colorimetric testing is presumptive and subject to contamination errors."*
+
+**API:** `POST /reagent/analyze` — body: multipart form with `image` (file). Response: `{ "hex": "#4B0082", "matches": [ {"substance": "MDMA (Marquis)", "probability": 72.1}, ... ] }`.
+
+---
+
 ## 6. Refresh protocol (keeping data up to date)
 
 External sources (TripSit, PsychonautWiki, OpenFDA) change over time. To refresh integrated data:
