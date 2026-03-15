@@ -239,7 +239,7 @@ export function DrugInteractionForm({
   function getResultCard() {
     if (state.status === "idle") {
       return (
-        <div className="rounded-2xl border border-dashed border-amber-300 bg-amber-50 p-4 text-sm text-slate-800">
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-900">
           Choose two substances, then run the interaction check.
         </div>
       );
@@ -247,12 +247,12 @@ export function DrugInteractionForm({
 
     if (state.status === "loading") {
       return (
-        <div className="rounded-2xl border border-amber-400/40 bg-amber-200/40 p-4">
+        <div className="rounded-2xl border border-amber-400 bg-amber-50 p-4">
           <div className="flex items-start gap-3">
             <IconLoader className="mt-0.5 h-5 w-5 animate-spin text-amber-700" />
             <div>
-              <p className="font-medium text-amber-900">Checking interaction</p>
-              <p className="mt-1 text-sm text-amber-900/80">
+              <p className="font-medium text-slate-900">Checking interaction</p>
+              <p className="mt-1 text-sm text-slate-800">
                 Querying the interaction graph. This should only take a moment.
               </p>
             </div>
@@ -263,12 +263,12 @@ export function DrugInteractionForm({
 
     if (state.status === "not_found") {
       return (
-        <div className="rounded-2xl border border-emerald-300/40 bg-emerald-100/60 p-4">
+        <div className="rounded-2xl border border-emerald-400 bg-white p-4">
           <div className="flex items-start gap-3">
             <IconCheckCircle className="mt-0.5 h-5 w-5 text-emerald-700" />
             <div>
-              <p className="font-medium text-emerald-900">No known interaction</p>
-              <p className="mt-1 text-sm text-emerald-900/80">
+              <p className="font-medium text-slate-900">No known interaction</p>
+              <p className="mt-1 text-sm text-slate-800">
                 There is no documented interaction between these substances in
                 the current graph. This does not guarantee safety.
               </p>
@@ -280,12 +280,12 @@ export function DrugInteractionForm({
 
     if (state.status === "error") {
       return (
-        <div className="rounded-2xl border border-rose-300/40 bg-rose-100/60 p-4">
+        <div className="rounded-2xl border border-rose-400 bg-white p-4">
           <div className="flex items-start gap-3">
             <IconAlertCircle className="mt-0.5 h-5 w-5 text-rose-700" />
             <div>
-              <p className="font-medium text-rose-900">Something went wrong</p>
-              <p className="mt-1 text-sm text-rose-900/80">{state.message}</p>
+              <p className="font-medium text-slate-900">Something went wrong</p>
+              <p className="mt-1 text-sm text-slate-800">{state.message}</p>
             </div>
           </div>
         </div>
@@ -302,18 +302,18 @@ export function DrugInteractionForm({
 
     if (noKnownEffect) {
       return (
-        <div className="rounded-2xl border border-slate-300 bg-slate-50 p-5">
+        <div className="rounded-2xl border border-slate-300 bg-white p-5">
           <div className="mb-4 flex items-center gap-3">
-            <IconAlertCircle className="h-5 w-5 text-slate-600" />
-            <span className="rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-700">
+            <IconAlertCircle className="h-5 w-5 text-slate-700" />
+            <span className="rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-900">
               No known effects yet
             </span>
           </div>
           <div className="space-y-3">
-            <p className="text-sm text-slate-800">
+            <p className="text-sm text-slate-900">
               <span className="font-semibold text-slate-900">Pair:</span> {data.drug_a} + {data.drug_b}
             </p>
-            <p className="text-sm text-slate-700">
+            <p className="text-sm text-slate-800">
               {data.mechanism ||
                 "No known interaction data for this combination. Colorimetric testing is presumptive; consult a professional."}
             </p>
@@ -330,10 +330,10 @@ export function DrugInteractionForm({
 
     if (isDangerous) {
       return (
-        <div className="rounded-2xl border border-rose-400/40 bg-rose-100/80 p-5">
+        <div className="rounded-2xl border border-rose-500 bg-white p-5">
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <IconShieldAlert className="h-5 w-5 text-rose-700" />
-            <span className="rounded-full border border-rose-400/40 bg-rose-200 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-rose-900">
+            <span className="rounded-full border border-rose-300 bg-rose-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-rose-900">
               Dangerous interaction
             </span>
             {isInferred && (
@@ -343,17 +343,17 @@ export function DrugInteractionForm({
             )}
           </div>
           <div className="space-y-3">
-            <p className="text-sm text-rose-900">
-              <span className="font-semibold text-rose-950">Pair:</span> {data.drug_a} +{" "}
+            <p className="text-sm text-slate-900">
+              <span className="font-semibold text-slate-900">Pair:</span> {data.drug_a} +{" "}
               {data.drug_b}
             </p>
-            <p className="text-sm text-rose-900">
-              <span className="font-semibold text-rose-950">Mechanism:</span>{" "}
+            <p className="text-sm text-slate-900">
+              <span className="font-semibold text-slate-900">Mechanism:</span>{" "}
               {data.mechanism ||
                 "This combination is flagged as dangerous in the interaction graph."}
             </p>
             {inferredNote && (
-              <p className="rounded-lg border border-amber-400/40 bg-amber-100 px-3 py-2 text-sm text-amber-900">
+              <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-slate-900">
                 {inferredNote}
               </p>
             )}
@@ -364,10 +364,10 @@ export function DrugInteractionForm({
 
     if (isCaution) {
       return (
-        <div className="rounded-2xl border border-amber-300/40 bg-amber-100/80 p-5">
+        <div className="rounded-2xl border border-amber-400 bg-white p-5">
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <IconTriangleAlert className="h-5 w-5 text-amber-700" />
-            <span className="rounded-full border border-amber-400/40 bg-amber-200 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-amber-900">
+            <span className="rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-amber-900">
               Caution advised
             </span>
             {isInferred && (
@@ -377,17 +377,17 @@ export function DrugInteractionForm({
             )}
           </div>
           <div className="space-y-3">
-            <p className="text-sm text-amber-900">
-              <span className="font-semibold text-amber-950">Pair:</span> {data.drug_a} +{" "}
+            <p className="text-sm text-slate-900">
+              <span className="font-semibold text-slate-900">Pair:</span> {data.drug_a} +{" "}
               {data.drug_b}
             </p>
-            <p className="text-sm text-amber-900">
-              <span className="font-semibold text-amber-950">Mechanism:</span>{" "}
+            <p className="text-sm text-slate-900">
+              <span className="font-semibold text-slate-900">Mechanism:</span>{" "}
               {data.mechanism ||
                 "Use with caution. Consider monitoring, dose adjustment, or alternatives."}
             </p>
             {inferredNote && (
-              <p className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-800">
+              <p className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-900">
                 {inferredNote}
               </p>
             )}
@@ -397,30 +397,30 @@ export function DrugInteractionForm({
     }
 
     return (
-      <div className="rounded-2xl border border-emerald-300/40 bg-emerald-100/80 p-5">
+      <div className="rounded-2xl border border-emerald-400 bg-white p-5">
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <IconCheckCircle className="h-5 w-5 text-emerald-700" />
-          <span className="rounded-full border border-emerald-400/40 bg-emerald-200 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-900">
+          <span className="rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-900">
             Low recorded risk
           </span>
           {isInferred && (
-            <span className="rounded-full border border-slate-300 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-800">
+            <span className="rounded-full border border-slate-300 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-900">
               Inferred from similar substance
             </span>
           )}
         </div>
         <div className="space-y-3">
-          <p className="text-sm text-emerald-900">
-            <span className="font-semibold text-emerald-950">Pair:</span> {data.drug_a} +{" "}
+          <p className="text-sm text-slate-900">
+            <span className="font-semibold text-slate-900">Pair:</span> {data.drug_a} +{" "}
             {data.drug_b}
           </p>
-          <p className="text-sm text-emerald-900">
-            <span className="font-semibold text-emerald-950">Mechanism:</span>{" "}
+          <p className="text-sm text-slate-900">
+            <span className="font-semibold text-slate-900">Mechanism:</span>{" "}
             {data.mechanism ||
               "There is no significant interaction risk recorded for this combination in the graph."}
           </p>
           {inferredNote && (
-            <p className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-800">
+            <p className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-900">
               {inferredNote}
             </p>
           )}
