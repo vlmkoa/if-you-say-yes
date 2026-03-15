@@ -1,6 +1,8 @@
 import "./globals.css";
 import Link from "next/link";
 import { Plus_Jakarta_Sans } from "next/font/google";
+import { DisclaimerGate } from "@/components/DisclaimerGate";
+import { MainNav } from "@/components/MainNav";
 
 const fontSans = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -19,50 +21,37 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={fontSans.variable}>
-      <body className="min-h-screen bg-slate-950 font-sans text-slate-100 antialiased">
+      <body className="min-h-screen bg-amber-50 font-sans text-slate-900 antialiased">
         <div className="relative min-h-screen overflow-x-hidden">
-          <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,rgba(34,211,238,0.15),transparent),radial-gradient(ellipse_60%_50%_at_100%_100%,rgba(16,185,129,0.08),transparent)]" />
+          <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top_left,rgba(248,113,113,0.28),transparent_55%),radial-gradient(circle_at_top_right,rgba(244,114,182,0.26),transparent_55%),radial-gradient(circle_at_bottom_left,rgba(251,191,36,0.24),transparent_55%),radial-gradient(circle_at_bottom_right,rgba(254,249,195,0.6),transparent_65%)]" />
 
-          <header className="sticky top-0 z-50 border-b border-white/[0.08] bg-slate-950/70 backdrop-blur-xl">
-            <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
-              <Link href="/" className="flex items-center gap-3 transition-opacity hover:opacity-90">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-500/20 text-sm font-bold text-cyan-300 shadow-[0_0_20px_-5px_rgba(34,211,238,0.2)]">
-                  IY
-                </div>
-                <div>
-                  <span className="block text-sm font-semibold tracking-tight text-white">If You Say Yes</span>
-                  <span className="block text-xs text-slate-500">Interaction intelligence</span>
-                </div>
-              </Link>
+          <header className="sticky top-0 z-50 group">
+            <div className="w-full border-b border-slate-900/60 bg-slate-900/20 backdrop-blur-md transition-colors group-hover:bg-slate-900/70">
+              <div className="mx-auto max-w-6xl px-4 sm:px-6">
+                <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 py-3 sm:py-4">
+                  <Link href="/" className="transition-opacity hover:opacity-90">
+                    <span className="block text-2xl font-semibold tracking-tight text-amber-50 sm:text-3xl">
+                      If you say &quot;Yes&quot;
+                    </span>
+                  </Link>
 
-              <nav className="flex items-center gap-1 text-sm">
-                <Link
-                  href="/"
-                  className="rounded-lg px-3 py-2 text-slate-400 transition-colors hover:bg-white/5 hover:text-white sm:px-4"
-                >
-                  Home
-                </Link>
-                <Link
-                  href="/dashboard"
-                  className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-slate-300 transition-colors hover:border-cyan-400/30 hover:bg-cyan-400/10 hover:text-cyan-200 sm:px-4"
-                >
-                  Dashboard
-                </Link>
-                <Link
-                  href="/reagent"
-                  className="rounded-lg px-3 py-2 text-slate-400 transition-colors hover:bg-white/5 hover:text-white sm:px-4"
-                >
-                  Reagent test
-                </Link>
-              </nav>
+                  <div className="flex justify-center">
+                    <MainNav />
+                  </div>
+
+                  <div className="hidden sm:block w-12" aria-hidden="true" />
+                </div>
+              </div>
             </div>
           </header>
 
-          <main className="relative">{children}</main>
+          <main className="relative">
+            <DisclaimerGate>{children}</DisclaimerGate>
+          </main>
 
-          <footer className="border-t border-white/[0.08] bg-slate-950/50">
-            <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-6 text-sm text-slate-500 sm:px-6 md:flex-row md:items-center md:justify-between md:py-8">
-              <p>Built for safer substance exploration and interaction awareness.</p>
+          <footer className="border-t border-amber-200 bg-amber-50/80">
+            <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-6 text-sm text-slate-700 sm:px-6 md:flex-row md:items-center md:justify-between md:py-8">
+              <p>Built for harm reduction, overdose prevention, and substance interaction awareness.</p>
               <p className="md:text-right">For educational use only — not a substitute for clinical judgment.</p>
             </div>
           </footer>
@@ -71,3 +60,4 @@ export default function RootLayout({
     </html>
   );
 }
+

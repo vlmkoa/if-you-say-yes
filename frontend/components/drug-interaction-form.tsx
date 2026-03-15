@@ -239,7 +239,7 @@ export function DrugInteractionForm({
   function getResultCard() {
     if (state.status === "idle") {
       return (
-        <div className="rounded-2xl border border-dashed border-white/10 bg-slate-900/60 p-4 text-sm text-slate-400">
+        <div className="rounded-2xl border border-dashed border-amber-300 bg-amber-50 p-4 text-sm text-slate-800">
           Choose two substances, then run the interaction check.
         </div>
       );
@@ -247,12 +247,12 @@ export function DrugInteractionForm({
 
     if (state.status === "loading") {
       return (
-        <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-4">
+        <div className="rounded-2xl border border-amber-400/40 bg-amber-200/40 p-4">
           <div className="flex items-start gap-3">
-            <IconLoader className="mt-0.5 h-5 w-5 animate-spin text-cyan-300" />
+            <IconLoader className="mt-0.5 h-5 w-5 animate-spin text-amber-700" />
             <div>
-              <p className="font-medium text-cyan-100">Checking interaction</p>
-              <p className="mt-1 text-sm text-cyan-50/80">
+              <p className="font-medium text-amber-900">Checking interaction</p>
+              <p className="mt-1 text-sm text-amber-900/80">
                 Querying the interaction graph. This should only take a moment.
               </p>
             </div>
@@ -263,12 +263,12 @@ export function DrugInteractionForm({
 
     if (state.status === "not_found") {
       return (
-        <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4">
+        <div className="rounded-2xl border border-emerald-300/40 bg-emerald-100/60 p-4">
           <div className="flex items-start gap-3">
-            <IconCheckCircle className="mt-0.5 h-5 w-5 text-emerald-300" />
+            <IconCheckCircle className="mt-0.5 h-5 w-5 text-emerald-700" />
             <div>
-              <p className="font-medium text-emerald-100">No known interaction</p>
-              <p className="mt-1 text-sm text-emerald-50/80">
+              <p className="font-medium text-emerald-900">No known interaction</p>
+              <p className="mt-1 text-sm text-emerald-900/80">
                 There is no documented interaction between these substances in
                 the current graph. This does not guarantee safety.
               </p>
@@ -280,12 +280,12 @@ export function DrugInteractionForm({
 
     if (state.status === "error") {
       return (
-        <div className="rounded-2xl border border-rose-400/20 bg-rose-400/10 p-4">
+        <div className="rounded-2xl border border-rose-300/40 bg-rose-100/60 p-4">
           <div className="flex items-start gap-3">
-            <IconAlertCircle className="mt-0.5 h-5 w-5 text-rose-300" />
+            <IconAlertCircle className="mt-0.5 h-5 w-5 text-rose-700" />
             <div>
-              <p className="font-medium text-rose-100">Something went wrong</p>
-              <p className="mt-1 text-sm text-rose-50/80">{state.message}</p>
+              <p className="font-medium text-rose-900">Something went wrong</p>
+              <p className="mt-1 text-sm text-rose-900/80">{state.message}</p>
             </div>
           </div>
         </div>
@@ -302,18 +302,18 @@ export function DrugInteractionForm({
 
     if (noKnownEffect) {
       return (
-        <div className="rounded-2xl border border-slate-500/30 bg-slate-700/20 p-5">
+        <div className="rounded-2xl border border-slate-300 bg-slate-50 p-5">
           <div className="mb-4 flex items-center gap-3">
-            <IconAlertCircle className="h-5 w-5 text-slate-400" />
-            <span className="rounded-full border border-slate-400/30 bg-slate-500/20 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-300">
+            <IconAlertCircle className="h-5 w-5 text-slate-600" />
+            <span className="rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-700">
               No known effects yet
             </span>
           </div>
           <div className="space-y-3">
-            <p className="text-sm text-slate-300">
-              <span className="font-semibold text-white">Pair:</span> {data.drug_a} + {data.drug_b}
+            <p className="text-sm text-slate-800">
+              <span className="font-semibold text-slate-900">Pair:</span> {data.drug_a} + {data.drug_b}
             </p>
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-slate-700">
               {data.mechanism ||
                 "No known interaction data for this combination. Colorimetric testing is presumptive; consult a professional."}
             </p>
@@ -330,10 +330,10 @@ export function DrugInteractionForm({
 
     if (isDangerous) {
       return (
-        <div className="rounded-2xl border border-rose-400/20 bg-rose-400/10 p-5">
+        <div className="rounded-2xl border border-rose-400/40 bg-rose-100/80 p-5">
           <div className="mb-4 flex flex-wrap items-center gap-2">
-            <IconShieldAlert className="h-5 w-5 text-rose-300" />
-            <span className="rounded-full border border-rose-300/20 bg-rose-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-rose-100">
+            <IconShieldAlert className="h-5 w-5 text-rose-700" />
+            <span className="rounded-full border border-rose-400/40 bg-rose-200 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-rose-900">
               Dangerous interaction
             </span>
             {isInferred && (
@@ -343,17 +343,17 @@ export function DrugInteractionForm({
             )}
           </div>
           <div className="space-y-3">
-            <p className="text-sm text-rose-50/90">
-              <span className="font-semibold text-white">Pair:</span> {data.drug_a} +{" "}
+            <p className="text-sm text-rose-900">
+              <span className="font-semibold text-rose-950">Pair:</span> {data.drug_a} +{" "}
               {data.drug_b}
             </p>
-            <p className="text-sm text-rose-50/90">
-              <span className="font-semibold text-white">Mechanism:</span>{" "}
+            <p className="text-sm text-rose-900">
+              <span className="font-semibold text-rose-950">Mechanism:</span>{" "}
               {data.mechanism ||
                 "This combination is flagged as dangerous in the interaction graph."}
             </p>
             {inferredNote && (
-              <p className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+              <p className="rounded-lg border border-amber-400/40 bg-amber-100 px-3 py-2 text-sm text-amber-900">
                 {inferredNote}
               </p>
             )}
@@ -364,10 +364,10 @@ export function DrugInteractionForm({
 
     if (isCaution) {
       return (
-        <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 p-5">
+        <div className="rounded-2xl border border-amber-300/40 bg-amber-100/80 p-5">
           <div className="mb-4 flex flex-wrap items-center gap-2">
-            <IconTriangleAlert className="h-5 w-5 text-amber-300" />
-            <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-amber-100">
+            <IconTriangleAlert className="h-5 w-5 text-amber-700" />
+            <span className="rounded-full border border-amber-400/40 bg-amber-200 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-amber-900">
               Caution advised
             </span>
             {isInferred && (
@@ -377,17 +377,17 @@ export function DrugInteractionForm({
             )}
           </div>
           <div className="space-y-3">
-            <p className="text-sm text-amber-50/90">
-              <span className="font-semibold text-white">Pair:</span> {data.drug_a} +{" "}
+            <p className="text-sm text-amber-900">
+              <span className="font-semibold text-amber-950">Pair:</span> {data.drug_a} +{" "}
               {data.drug_b}
             </p>
-            <p className="text-sm text-amber-50/90">
-              <span className="font-semibold text-white">Mechanism:</span>{" "}
+            <p className="text-sm text-amber-900">
+              <span className="font-semibold text-amber-950">Mechanism:</span>{" "}
               {data.mechanism ||
                 "Use with caution. Consider monitoring, dose adjustment, or alternatives."}
             </p>
             {inferredNote && (
-              <p className="rounded-lg border border-slate-500/30 bg-slate-700/20 px-3 py-2 text-sm text-slate-200">
+              <p className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-800">
                 {inferredNote}
               </p>
             )}
@@ -397,30 +397,30 @@ export function DrugInteractionForm({
     }
 
     return (
-      <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-5">
+      <div className="rounded-2xl border border-emerald-300/40 bg-emerald-100/80 p-5">
         <div className="mb-4 flex flex-wrap items-center gap-2">
-          <IconCheckCircle className="h-5 w-5 text-emerald-300" />
-          <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-100">
+          <IconCheckCircle className="h-5 w-5 text-emerald-700" />
+          <span className="rounded-full border border-emerald-400/40 bg-emerald-200 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-900">
             Low recorded risk
           </span>
           {isInferred && (
-            <span className="rounded-full border border-slate-400/40 bg-slate-500/20 px-3 py-1 text-xs font-medium text-slate-200">
+            <span className="rounded-full border border-slate-300 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-800">
               Inferred from similar substance
             </span>
           )}
         </div>
         <div className="space-y-3">
-          <p className="text-sm text-emerald-50/90">
-            <span className="font-semibold text-white">Pair:</span> {data.drug_a} +{" "}
+          <p className="text-sm text-emerald-900">
+            <span className="font-semibold text-emerald-950">Pair:</span> {data.drug_a} +{" "}
             {data.drug_b}
           </p>
-          <p className="text-sm text-emerald-50/90">
-            <span className="font-semibold text-white">Mechanism:</span>{" "}
+          <p className="text-sm text-emerald-900">
+            <span className="font-semibold text-emerald-950">Mechanism:</span>{" "}
             {data.mechanism ||
               "There is no significant interaction risk recorded for this combination in the graph."}
           </p>
           {inferredNote && (
-            <p className="rounded-lg border border-slate-500/30 bg-slate-700/20 px-3 py-2 text-sm text-slate-200">
+            <p className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-800">
               {inferredNote}
             </p>
           )}
@@ -459,7 +459,7 @@ export function DrugInteractionForm({
         <div className="relative">
           <label
             htmlFor="drug-a"
-            className="mb-2 block text-sm font-medium text-white"
+            className="mb-2 block text-sm font-medium text-slate-900"
           >
             Substance A
           </label>
@@ -477,7 +477,7 @@ export function DrugInteractionForm({
             }}
             placeholder="Start typing to search..."
             autoComplete="off"
-            className="w-full rounded-2xl border border-slate-600 bg-slate-800 px-4 py-3 text-white outline-none transition placeholder:text-slate-400 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/30"
+            className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-500 focus:border-amber-500 focus:ring-2 focus:ring-amber-300"
           />
           {focusedField === "a" &&
             renderSuggestions(filteredSubstancesA, (value) => {
@@ -489,7 +489,7 @@ export function DrugInteractionForm({
         <button
           type="button"
           onClick={swapValues}
-          className="inline-flex h-12 w-12 items-center justify-center self-end rounded-2xl border border-white/10 bg-white/5 text-slate-200 transition hover:bg-white/10"
+          className="inline-flex h-12 w-12 items-center justify-center self-end rounded-2xl border border-slate-300 bg-white text-slate-700 transition hover:bg-amber-100 hover:border-amber-400"
           aria-label="Swap substances"
         >
           <IconArrowLeftRight className="h-4 w-4" />
@@ -498,7 +498,7 @@ export function DrugInteractionForm({
         <div className="relative">
           <label
             htmlFor="drug-b"
-            className="mb-2 block text-sm font-medium text-white"
+            className="mb-2 block text-sm font-medium text-slate-900"
           >
             Substance B
           </label>
@@ -516,7 +516,7 @@ export function DrugInteractionForm({
             }}
             placeholder="Start typing to search..."
             autoComplete="off"
-            className="w-full rounded-2xl border border-slate-600 bg-slate-800 px-4 py-3 text-white outline-none transition placeholder:text-slate-400 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/30"
+            className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-500 focus:border-amber-500 focus:ring-2 focus:ring-amber-300"
           />
           {focusedField === "b" &&
             renderSuggestions(filteredSubstancesB, (value) => {
@@ -526,7 +526,7 @@ export function DrugInteractionForm({
         </div>
       </div>
 
-      <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-4">
+      <div className="rounded-2xl border border-slate-300 bg-white/80 p-4">
         <div className="mb-2 flex flex-wrap gap-2">
           {drugA && (
             <span className="inline-flex rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs font-medium text-cyan-100">
@@ -540,7 +540,7 @@ export function DrugInteractionForm({
           )}
         </div>
 
-        <p className="text-sm leading-6 text-slate-400">
+        <p className="text-sm leading-6 text-slate-800">
           Graph-backed interaction engine. Results do not replace clinical
           judgment or official prescribing guidance.
         </p>
@@ -549,7 +549,7 @@ export function DrugInteractionForm({
       <button
         type="submit"
         disabled={state.status === "loading"}
-        className="inline-flex w-full items-center justify-center rounded-2xl bg-cyan-400 px-5 py-3 font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-70"
+        className="inline-flex w-full items-center justify-center rounded-2xl bg-amber-400 px-5 py-3 font-semibold text-slate-950 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-70"
       >
         {state.status === "loading" ? "Checking..." : "Check interaction"}
       </button>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { DrugInteractionForm } from "@/components/drug-interaction-form";
+import { HomeHero } from "@/components/HomeHero";
 
 // Must be a valid base URL or fetch throws. Empty string / undefined at build time can break client.
 const BACKEND_URL =
@@ -40,90 +41,94 @@ function IconArrowRight({ className }: { className?: string }) {
   );
 }
 
-const quickFacts = [
-  {
-    title: "Fast interaction checks",
-    description:
-      "Compare two substances instantly through the graph-backed interaction service.",
-    icon: IconShield,
-  },
-  {
-    title: "Clinical-style profiles",
-    description:
-      "Browse half-life, bioavailability, and standard dosage from the structured profile dashboard.",
-    icon: IconFlask,
-  },
-  {
-    title: "Action-focused outputs",
-    description:
-      "Highlight caution and dangerous combinations with clearer visual feedback.",
-    icon: IconActivity,
-  },
-];
-
 export default function HomePage() {
   return (
     <div className="subtle-grid">
-      <section className="app-shell py-12 sm:py-16 md:py-24">
-        <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-start lg:gap-12">
-          <div className="space-y-8 animate-fade-in">
-            <div className="space-y-4">
-              <span className="soft-label">Drug interaction engine</span>
-              <h1 className="section-title max-w-2xl">
-                Check substance interactions with a cleaner, more trustworthy workflow.
-              </h1>
-              <p className="section-copy max-w-xl">
-                Compare two substances instantly. This app uses a graph-backed interaction service and a clinical-style dashboard for reference.
+      <HomeHero />
+
+      <section className="app-shell pb-12 sm:pb-16 md:pb-24">
+        <div className="grid gap-8 md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] md:items-start">
+          <div className="space-y-6">
+            <div className="glass-card p-5 sm:p-6">
+              <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-orange-800">
+                <IconShield className="h-4 w-4" />
+                Interaction checker
+              </div>
+              <h2 className="text-lg font-semibold text-slate-900">
+                What happens if I mix these two?
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-slate-800">
+                Type any two substances and see what&apos;s known ({`or`} unknown) about that combo — straight from the harm
+                reduction graphs, with clear &quot;dangerous / caution / low info&quot; feedback.
               </p>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <Link
+                  href="#checker"
+                  className="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-sm shadow-amber-300/50 transition hover:bg-amber-300"
+                >
+                  Try the checker
+                  <IconArrowRight className="h-4 w-4" />
+                </Link>
+              </div>
             </div>
 
-            <div className="flex flex-wrap gap-3">
-              <Link
-                href="#checker"
-                className="inline-flex items-center gap-2 rounded-xl bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-900 shadow-lg shadow-cyan-400/20 transition hover:bg-cyan-300 hover:shadow-cyan-400/25"
-              >
-                Check interaction
-                <IconArrowRight className="h-4 w-4" />
-              </Link>
-              <Link
-                href="/dashboard"
-                className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-medium text-white transition hover:bg-white/10"
-              >
-                Browse dashboard
-              </Link>
-            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="glass-card p-5">
+                <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-sky-900">
+                  <IconFlask className="h-4 w-4" />
+                  Dashboard
+                </div>
+                <h3 className="text-sm font-semibold text-slate-900">
+                  Learn the shape of a drug
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-slate-800">
+                  Half-life, reference dosages, common adverse effects, and community notes — one card per substance so
+                  you can actually see what you&apos;re dealing with.
+                </p>
+                <Link
+                  href="/dashboard"
+                  className="mt-3 inline-flex text-xs font-semibold text-sky-900 underline underline-offset-4"
+                >
+                  Open the dashboard
+                </Link>
+              </div>
 
-            <div className="grid gap-4 sm:grid-cols-3">
-              {quickFacts.map((item, i) => {
-                const Icon = item.icon;
-                return (
-                  <div key={item.title} className="glass-card p-5 animate-slide-up">
-                    <div className="mb-3 inline-flex rounded-xl bg-cyan-400/10 p-2.5 text-cyan-300 ring-1 ring-cyan-400/20">
-                      <Icon className="h-5 w-5" />
-                    </div>
-                    <h2 className="mb-1.5 text-base font-semibold text-white">
-                      {item.title}
-                    </h2>
-                    <p className="text-sm leading-6 text-slate-400">
-                      {item.description}
-                    </p>
-                  </div>
-                );
-              })}
+              <div className="glass-card p-5">
+                <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-rose-900">
+                  <IconActivity className="h-4 w-4" />
+                  Reagent test chat
+                </div>
+                <h3 className="text-sm font-semibold text-slate-900">
+                  Make sense of reagent colors
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-slate-800">
+                  Upload a reagent test photo and get a color-based, non-diagnostic read on what it might react like —
+                  plus a plain-language explanation.
+                </p>
+                <Link
+                  href="/reagent"
+                  className="mt-3 inline-flex text-xs font-semibold text-rose-900 underline underline-offset-4"
+                >
+                  Go to reagent test
+                </Link>
+              </div>
             </div>
           </div>
 
           <div
             id="checker"
-            className="glass-card p-5 sm:p-6 md:p-8 lg:sticky lg:top-24 animate-slide-up"
+            className="glass-card p-5 sm:p-6 md:p-8 lg:sticky lg:top-24"
           >
-            <div className="mb-5">
-              <p className="soft-label mb-2">Live checker</p>
-              <h2 className="text-xl font-semibold text-white sm:text-2xl">
+            <div className="mb-5 text-left">
+              <p className="text-xs font-semibold uppercase tracking-wide text-amber-500 mb-1">
+                Live interaction check
+              </p>
+              <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">
                 Compare two substances
               </h2>
-              <p className="mt-2 text-sm leading-6 text-slate-400">
-                Type substance names below. Results are powered by your FastAPI interaction endpoint.
+              <p className="mt-2 text-sm leading-6 text-slate-800">
+                Start typing names (or nicknames) — we&apos;ll pull from the known interaction graph and, when data is thin,
+                from similar reference substances.
               </p>
             </div>
 
@@ -133,59 +138,52 @@ export default function HomePage() {
       </section>
 
       <section className="app-shell pb-12 sm:pb-16 md:pb-24">
-        <div className="glass-card grid gap-5 p-5 sm:gap-6 sm:p-6 md:grid-cols-2 lg:grid-cols-4 md:p-8">
-          <div className="lg:col-span-1">
-            <p className="soft-label mb-2">How to read results</p>
-            <h3 className="text-lg font-semibold text-white sm:text-xl">Risk levels</h3>
+        <div className="glass-card p-5 sm:p-6 md:p-8">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-left">
+              <p className="text-xs font-semibold uppercase tracking-wide text-rose-500 mb-1">
+                How to read the colors
+              </p>
+              <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">
+                Interaction guide at a glance
+              </h2>
+              <p className="mt-2 max-w-xl text-sm leading-6 text-slate-800">
+                We sort combinations into three buckets. They&apos;re not moral judgments and they&apos;re not guarantees —
+                just the best read from the data we have.
+              </p>
+            </div>
           </div>
 
-          <div className="metric-card">
-            <span className="pill border-emerald-400/30 bg-emerald-400/10 text-emerald-200">
-              Low / none recorded
-            </span>
-            <p className="mt-3 text-sm leading-6 text-slate-300">
-              No significant interaction recorded in the graph for the chosen pair.
-            </p>
-          </div>
-
-          <div className="metric-card">
-            <span className="pill border-amber-400/30 bg-amber-400/10 text-amber-200">
-              Caution
-            </span>
-            <p className="mt-3 text-sm leading-6 text-slate-300">
-              Monitoring, dose adjustment, or alternatives may be needed depending on context.
-            </p>
-          </div>
-
-          <div className="metric-card">
-            <span className="pill border-rose-400/40 bg-rose-500/20 text-rose-200">
-              Dangerous
-            </span>
-            <p className="mt-3 text-sm leading-6 text-slate-300">
-              This combination is flagged as high risk. Avoid or seek clinical guidance before use.
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-6 glass-card p-5 sm:p-6 md:p-8">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="soft-label mb-2">Phase 2</p>
-              <h3 className="text-xl font-semibold text-white sm:text-2xl">
-                Substance profile dashboard
-              </h3>
-              <p className="mt-2 max-w-xl text-sm leading-6 text-slate-400">
-                View pharmacological reference data in a polished grid with cards and pagination.
+          <div className="mt-4 grid gap-4 md:grid-cols-3">
+            <div className="metric-card">
+              <span className="pill border-emerald-400/40 bg-emerald-100 text-emerald-900">
+                Low / no recorded risk
+              </span>
+              <p className="mt-3 text-sm leading-6 text-slate-800">
+                We haven&apos;t found a strong signal for this pair. That doesn&apos;t mean it&apos;s safe — just that serious
+                problems aren&apos;t well-documented in the graph yet.
               </p>
             </div>
 
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-medium text-white transition hover:bg-white/10"
-            >
-              Open dashboard
-              <IconArrowRight className="h-4 w-4" />
-            </Link>
+            <div className="metric-card">
+              <span className="pill border-amber-400/60 bg-amber-100 text-amber-900">
+                Caution
+              </span>
+              <p className="mt-3 text-sm leading-6 text-slate-800">
+                There is some known risk. Dose, timing, health conditions, and other substances can tilt this toward
+                danger; this is where extra checking and slower decisions matter.
+              </p>
+            </div>
+
+            <div className="metric-card">
+              <span className="pill border-rose-500/70 bg-rose-100 text-rose-900">
+                Dangerous
+              </span>
+              <p className="mt-3 text-sm leading-6 text-slate-800">
+                These mixes show clear harm patterns (e.g. respiratory depression, serotonin toxicity, cardiac load).
+                Best treated as hard no&apos;s or &quot;only with medical supervision&quot; territory.
+              </p>
+            </div>
           </div>
         </div>
       </section>
