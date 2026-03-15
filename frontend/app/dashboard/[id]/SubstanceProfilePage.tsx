@@ -229,7 +229,115 @@ export function SubstanceProfilePage({ id }: { id: string }) {
           </dl>
           {profile.dosageJson && <DosageDisplay dosageJson={profile.dosageJson} />}
         </article>
+
+        <CommentSection substanceId={profile.id} />
       </main>
     </div>
+  );
+}
+
+type Comment = { id: number; substanceId: number; body: string; status?: string; createdAt: string };
+
+function CommentSection({ substanceId }: { substanceId: number }) {
+  const [comments, setComments] = React.useState<Comment[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [submitBody, setSubmitBody] = React.useState("");
+  const [submitting, setSubmitting] = React.useState(false);
+  const [submitMessage, setSubmitMessage] = React.useState<"idle" | "success" | "error">("idle");
+
+  function loadComments() {
+    fetch(`${API_BASE}/api/substances/${substanceId}/comments`, { signal: AbortSignal.timeout(10000) })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data: Comment[]) => setComments(Array.isArray(data) ? data : []))
+      .catch(() => setComments([]))
+      .finally(() => setLoading(false));
+  }
+
+  React.useEffect(() => {
+    setLoading(true);
+    loadComments();
+  }, [substanceId]);
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const body = submitBody.trim();
+    if (!body || submitting) return;
+    setSubmitting(true);
+    setSubmitMessage("idle");
+    fetch(`${API_BASE}/api/substances/${substanceId}/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ body }),
+    })
+      .then((res) => {
+        if (res.ok) {
+          setSubmitBody("");
+          setSubmitMessage("success");
+          loadComments();
+        } else {
+          setSubmitMessage("error");
+        }
+      })
+      .catch(() => setSubmitMessage("error"))
+      .finally(() => setSubmitting(false));
+  }
+
+  return (
+    <section className="mt-8 rounded-lg border border-stone-200 bg-white p-6 shadow-sm" aria-label="Community comments">
+      <h2 className="text-lg font-semibold text-stone-800">Community</h2>
+      <p className="mt-1 text-sm text-stone-500">
+        Anonymous experiences and notes. No login required. Comments appear after moderator approval.
+      </p>
+
+      {loading ? (
+        <p className="mt-4 text-sm text-stone-500">Loading comments…</p>
+      ) : (
+        <ul className="mt-4 space-y-3">
+          {comments.length === 0 ? (
+            <li className="text-sm text-stone-500 italic">No comments yet. Be the first to share.</li>
+          ) : (
+            comments.map((c) => (
+              <li key={c.id} className="rounded border border-stone-100 bg-stone-50/50 p-3 text-sm text-stone-700">
+                <span className="text-stone-400 text-xs">
+                  Anonymous · {new Date(c.createdAt).toLocaleDateString()}
+                </span>
+                <p className="mt-1 whitespace-pre-wrap">{c.body}</p>
+              </li>
+            ))
+          )}
+        </ul>
+      )}
+
+      <form onSubmit={handleSubmit} className="mt-6">
+        <label htmlFor="comment-body" className="block text-sm font-medium text-stone-600">
+          Share your experience (anonymous)
+        </label>
+        <textarea
+          id="comment-body"
+          rows={3}
+          value={submitBody}
+          onChange={(e) => setSubmitBody(e.target.value)}
+          placeholder="Your comment will be visible after a moderator approves it."
+          maxLength={4000}
+          className="mt-1 w-full rounded border border-stone-300 p-2 text-sm text-stone-800 placeholder-stone-400 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+          disabled={submitting}
+        />
+        <div className="mt-2 flex items-center gap-3">
+          <button
+            type="submit"
+            disabled={!submitBody.trim() || submitting}
+            className="rounded bg-stone-700 px-4 py-2 text-sm text-white hover:bg-stone-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {submitting ? "Sending…" : "Submit"}
+          </button>
+          {submitMessage === "success" && (
+            <span className="text-sm text-green-600">Submitted. It will appear after approval.</span>
+          )}
+          {submitMessage === "error" && (
+            <span className="text-sm text-red-600">Failed to submit. Try again.</span>
+          )}
+        </div>
+      </form>
+    </section>
   );
 }

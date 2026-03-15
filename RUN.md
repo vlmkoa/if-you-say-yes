@@ -154,6 +154,21 @@ The script calls PsychonautWiki and OpenFDA ingestors, then **POST /api/substanc
 
 ---
 
+## 5.1 Dashboard search, sort, and community comments
+
+- **Search:** Use the search bar on the dashboard; it filters by substance name (query param `q`). **Sort** dropdown: Name A–Z/Z–A, Half-life, Bioavailability.
+- **Community comments:** On each substance’s detail page there is a **Community** section. Anyone can post anonymously (no login). Comments are stored as **PENDING** and only **approved** by a moderator are shown. To approve or reject, use the moderation API with a shared secret.
+
+**Moderation API** (requires `X-Moderation-Key` header equal to `MODERATION_API_KEY` env):
+
+- List pending: `GET /api/moderation/comments?page=0&size=20` with header `X-Moderation-Key: <your-key>`
+- Approve: `PATCH /api/moderation/comments/{id}/approve` with same header
+- Reject: `PATCH /api/moderation/comments/{id}/reject` with same header
+
+Set `MODERATION_API_KEY` in the environment (or in `application.properties`) so moderators can call these endpoints (e.g. from a script or internal tool).
+
+---
+
 ## 6. Refresh protocol (keeping data up to date)
 
 External sources (TripSit, PsychonautWiki, OpenFDA) change over time. To refresh integrated data:

@@ -125,10 +125,23 @@ function SubstanceCard({ profile }: { profile: ReturnType<typeof normalizeProfil
   );
 }
 
+const SORT_OPTIONS = [
+  { value: "name_asc", sortBy: "name", sortDir: "asc", label: "Name A–Z" },
+  { value: "name_desc", sortBy: "name", sortDir: "desc", label: "Name Z–A" },
+  { value: "halfLife_desc", sortBy: "halfLife", sortDir: "desc", label: "Half-life (high first)" },
+  { value: "halfLife_asc", sortBy: "halfLife", sortDir: "asc", label: "Half-life (low first)" },
+  { value: "bioavailability_desc", sortBy: "bioavailability", sortDir: "desc", label: "Bioavailability (high first)" },
+  { value: "bioavailability_asc", sortBy: "bioavailability", sortDir: "asc", label: "Bioavailability (low first)" },
+] as const;
+
 export function DashboardClient() {
   const searchParams = useSearchParams();
   const pageParam = searchParams.get("page");
   const page = Math.max(0, parseInt(pageParam ?? "0", 10) || 0);
+  const q = searchParams.get("q") ?? "";
+  const sortValue = searchParams.get("sort") ?? "name_asc";
+  const sortOption = SORT_OPTIONS.find((o) => o.value === sortValue) ?? SORT_OPTIONS[0];
+  const [searchInput, setSearchInput] = useState(q);
 
   const [data, setData] = useState<PagedSubstances | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -141,8 +154,9 @@ export function DashboardClient() {
     const url = new URL("/api/substances", API_BASE);
     url.searchParams.set("page", String(page));
     url.searchParams.set("size", String(PAGE_SIZE));
-    url.searchParams.set("sortBy", "name");
-    url.searchParams.set("sortDir", "asc");
+    url.searchParams.set("sortBy", sortOption.sortBy);
+    url.searchParams.set("sortDir", sortOption.sortDir);
+    if (q) url.searchParams.set("q", q);
     fetch(url.toString(), { signal: AbortSignal.timeout(20000) })
       .then((res) => {
         if (!res.ok) {
@@ -168,7 +182,16 @@ export function DashboardClient() {
     return () => {
       cancelled = true;
     };
-  }, [page]);
+  }, [page, q, sortOption.sortBy, sortOption.sortDir]);
+
+  function buildSearchUrl(nextPage: number, nextQ: string, nextSort: string) {
+    const params = new URLSearchParams();
+    if (nextPage > 0) params.set("page", String(nextPage));
+    if (nextQ) params.set("q", nextQ);
+    if (nextSort && nextSort !== "name_asc") params.set("sort", nextSort);
+    const s = params.toString();
+    return s ? `/dashboard?${s}` : "/dashboard";
+  }
 
   function retry() {
     setLoading(true);
@@ -176,8 +199,9 @@ export function DashboardClient() {
     const url = new URL("/api/substances", API_BASE);
     url.searchParams.set("page", String(page));
     url.searchParams.set("size", String(PAGE_SIZE));
-    url.searchParams.set("sortBy", "name");
-    url.searchParams.set("sortDir", "asc");
+    url.searchParams.set("sortBy", sortOption.sortBy);
+    url.searchParams.set("sortDir", sortOption.sortDir);
+    if (q) url.searchParams.set("q", q);
     fetch(url.toString(), { signal: AbortSignal.timeout(20000) })
       .then((res) => {
         if (!res.ok) {
@@ -199,7 +223,21 @@ export function DashboardClient() {
   const totalPages = data?.totalPages ?? 0;
   const number = data?.number ?? 0;
   const size = data?.size ?? PAGE_SIZE;
-  const content = data?.content ?? [];
+  const rawContent = data?.content ?? [];
+  // Dedupe by name (case-insensitive). When duplicates exist, keep the one with risk data (addictionPotential) so the warning shows on the detail page.
+  const content = rawContent.reduce((acc, profile) => {
+    const key = (profile.name ?? "").toLowerCase();
+    const existingIdx = acc.findIndex((p) => (p.name ?? "").toLowerCase() === key);
+    if (existingIdx === -1) {
+      acc.push(profile);
+    } else {
+      const existing = acc[existingIdx];
+      const pVal = profile.addictionPotential != null ? Number(profile.addictionPotential) : 0;
+      const eVal = existing.addictionPotential != null ? Number(existing.addictionPotential) : 0;
+      if (pVal > eVal) acc[existingIdx] = profile;
+    }
+    return acc;
+  }, [] as typeof rawContent);
 
   return (
     <div className="min-h-screen bg-stone-50">
@@ -211,6 +249,51 @@ export function DashboardClient() {
       </header>
 
       <main className="mx-auto max-w-6xl px-6 py-8">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <form
+            className="flex gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const params = new URLSearchParams(searchParams.toString());
+              params.set("q", searchInput.trim());
+              params.delete("page");
+              window.location.href = params.toString() ? `/dashboard?${params.toString()}` : "/dashboard";
+            }}
+          >
+            <input
+              type="search"
+              placeholder="Search by name…"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="rounded border border-stone-300 px-3 py-2 text-sm text-stone-800 placeholder-stone-400 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 min-w-[200px]"
+              aria-label="Search substances by name"
+            />
+            <button type="submit" className="rounded bg-stone-700 px-3 py-2 text-sm text-white hover:bg-stone-600">
+              Search
+            </button>
+          </form>
+          <label className="flex items-center gap-2 text-sm text-stone-600">
+            Sort by
+            <select
+              value={sortValue}
+              onChange={(e) => {
+                const params = new URLSearchParams(searchParams.toString());
+                params.set("sort", e.target.value);
+                params.delete("page");
+                window.location.href = params.toString() ? `/dashboard?${params.toString()}` : "/dashboard";
+              }}
+              className="rounded border border-stone-300 bg-white px-2 py-1.5 text-stone-800 focus:border-cyan-500 focus:outline-none"
+              aria-label="Sort order"
+            >
+              {SORT_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
         {loading && !data && (
           <div className="rounded-lg border border-stone-200 bg-white p-8 text-center text-stone-500">
             Loading…
@@ -255,7 +338,7 @@ export function DashboardClient() {
             {totalPages > 1 && (
               <nav className="mt-8 flex flex-wrap items-center justify-center gap-2" aria-label="Pagination">
                 <Link
-                  href={page <= 0 ? "/dashboard" : `/dashboard?page=${page - 1}`}
+                  href={page <= 0 ? buildSearchUrl(0, q, sortValue) : buildSearchUrl(page - 1, q, sortValue)}
                   className={`rounded border px-3 py-1.5 text-sm ${page <= 0 ? "pointer-events-none border-stone-200 text-stone-400" : "border-stone-300 text-stone-700 hover:bg-stone-100"}`}
                   aria-disabled={page <= 0}
                 >
@@ -265,7 +348,7 @@ export function DashboardClient() {
                   Page {number + 1} of {totalPages}
                 </span>
                 <Link
-                  href={page >= totalPages - 1 ? `/dashboard?page=${totalPages - 1}` : `/dashboard?page=${page + 1}`}
+                  href={page >= totalPages - 1 ? buildSearchUrl(totalPages - 1, q, sortValue) : buildSearchUrl(page + 1, q, sortValue)}
                   className={`rounded border px-3 py-1.5 text-sm ${page >= totalPages - 1 ? "pointer-events-none border-stone-200 text-stone-400" : "border-stone-300 text-stone-700 hover:bg-stone-100"}`}
                   aria-disabled={page >= totalPages - 1}
                 >

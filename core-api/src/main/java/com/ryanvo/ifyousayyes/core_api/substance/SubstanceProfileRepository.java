@@ -10,7 +10,10 @@ import java.util.Optional;
 @Repository
 public interface SubstanceProfileRepository extends JpaRepository<SubstanceProfile, Long> {
 
-	Page<SubstanceProfile> findAllByOrderByNameAsc(Pageable pageable);
+	Page<SubstanceProfile> findAllByNameContainingIgnoreCase(String name, Pageable pageable);
 
 	Optional<SubstanceProfile> findByName(String name);
+
+	/** Case-insensitive: use when syncing to avoid duplicate rows for "Cocaine" vs "cocaine". */
+	Optional<SubstanceProfile> findByNameIgnoreCase(String name);
 }

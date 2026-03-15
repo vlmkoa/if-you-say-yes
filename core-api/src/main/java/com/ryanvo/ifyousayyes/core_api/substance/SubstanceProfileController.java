@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 import jakarta.validation.Valid;
 
 @RestController
@@ -36,8 +38,10 @@ public class SubstanceProfileController {
 			.orElse(ResponseEntity.notFound().build());
 	}
 
+	private static final List<String> ALLOWED_SORT_FIELDS = List.of("name", "halfLife", "bioavailability", "id");
+
 	/**
-	 * Paginated list of substance profiles.
+	 * Paginated list of substance profiles. Optional search by name (q). Sort by name, halfLife, bioavailability, or id.
 	 * Default: page=0, size=20, sort=name,asc.
 	 */
 	@GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
@@ -45,10 +49,15 @@ public class SubstanceProfileController {
 			@RequestParam(defaultValue = "0") int page,
 			@RequestParam(defaultValue = "20") int size,
 			@RequestParam(defaultValue = "name") String sortBy,
-			@RequestParam(defaultValue = "asc") String sortDir) {
+			@RequestParam(defaultValue = "asc") String sortDir,
+			@RequestParam(required = false) String q) {
 
+		String safeSort = ALLOWED_SORT_FIELDS.contains(sortBy) ? sortBy : "name";
 		Sort.Direction direction = "desc".equalsIgnoreCase(sortDir) ? Sort.Direction.DESC : Sort.Direction.ASC;
-		Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
+		Pageable pageable = PageRequest.of(page, size, Sort.by(direction, safeSort));
+		if (q != null && !q.isBlank()) {
+			return service.searchByName(q, pageable);
+		}
 		return service.findAll(pageable);
 	}
 

@@ -24,7 +24,15 @@ public class SubstanceProfileService {
 
 	@Transactional(readOnly = true)
 	public Page<SubstanceProfile> findAll(Pageable pageable) {
-		return repository.findAllByOrderByNameAsc(pageable);
+		return repository.findAll(pageable);
+	}
+
+	@Transactional(readOnly = true)
+	public Page<SubstanceProfile> searchByName(String name, Pageable pageable) {
+		if (name == null || name.isBlank()) {
+			return repository.findAll(pageable);
+		}
+		return repository.findAllByNameContainingIgnoreCase(name.trim(), pageable);
 	}
 
 	/**
@@ -33,7 +41,7 @@ public class SubstanceProfileService {
 	 */
 	@Transactional
 	public SubstanceProfile syncDosageAndAdverseEvents(SubstanceSyncDto dto) {
-		Optional<SubstanceProfile> existing = repository.findByName(dto.name());
+		Optional<SubstanceProfile> existing = repository.findByNameIgnoreCase(dto.name());
 		SubstanceProfile profile;
 		if (existing.isPresent()) {
 			profile = existing.get();

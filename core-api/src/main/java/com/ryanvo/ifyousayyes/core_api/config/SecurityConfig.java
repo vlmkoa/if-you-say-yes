@@ -19,7 +19,7 @@ public class SecurityConfig {
 	CorsConfigurationSource corsConfigurationSource() {
 		CorsConfiguration config = new CorsConfiguration();
 		config.setAllowedOrigins(List.of("http://localhost:3000", "http://127.0.0.1:3000", "http://localhost", "http://127.0.0.1"));
-		config.setAllowedMethods(List.of("GET", "POST", "OPTIONS"));
+		config.setAllowedMethods(List.of("GET", "POST", "PATCH", "OPTIONS"));
 		config.setAllowedHeaders(List.of("*"));
 		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
 		source.registerCorsConfiguration("/api/**", config);
