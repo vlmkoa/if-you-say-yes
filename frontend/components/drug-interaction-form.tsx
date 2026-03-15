@@ -44,6 +44,7 @@ type InteractionState =
   | { status: "error"; message: string }
   | { status: "success"; data: InteractionResponse };
 
+// Clinical + TripSit-style names so autocomplete matches Neo4j (TripSit combos). Lookup is case-insensitive.
 const DEFAULT_SUBSTANCES: string[] = [
   "Warfarin",
   "Ibuprofen",
@@ -52,7 +53,42 @@ const DEFAULT_SUBSTANCES: string[] = [
   "Atorvastatin",
   "Metformin",
   "Omeprazole",
+  "alcohol",
+  "caffeine",
+  "cannabis",
+  "cocaine",
+  "lsd",
+  "mdma",
+  "ketamine",
+  "dmt",
+  "benzodiazepines",
+  "amphetamines",
+  "tramadol",
+  "opioids",
+  "ssris",
+  "maois",
+  "mushrooms",
+  "nitrous",
+  "mescaline",
+  "dextromethorphan",
+  "lithium",
+  "ghb/gbl",
+  "pcp",
+  "2c-x",
+  "2c-t-x",
+  "5-meo-xxt",
+  "amt",
+  "dox",
+  "mxe",
+  "nbomes",
+  "pregabalin",
 ];
+
+function resolveBackendUrl(apiBaseUrl: string | undefined): string {
+  if (typeof window === "undefined") return apiBaseUrl && apiBaseUrl.startsWith("http") ? apiBaseUrl : "http://localhost:8000";
+  if (apiBaseUrl && apiBaseUrl.startsWith("http")) return apiBaseUrl;
+  return `http://${window.location.hostname}:8000`;
+}
 
 export function DrugInteractionForm({
   apiBaseUrl,
@@ -62,14 +98,22 @@ export function DrugInteractionForm({
   const [drugB, setDrugB] = React.useState("");
   const [state, setState] = React.useState({ status: "idle" } as InteractionState);
   const [backendUnavailable, setBackendUnavailable] = React.useState<boolean | null>(null);
+  const [resolvedBackendUrl, setResolvedBackendUrl] = React.useState<string>(
+    "http://localhost:8000"
+  );
 
   const [focusedField, setFocusedField] = React.useState<"a" | "b" | null>(null);
+
+  useEffect(() => {
+    const url = resolveBackendUrl(apiBaseUrl);
+    setResolvedBackendUrl(url);
+  }, [apiBaseUrl]);
 
   useEffect(() => {
     let cancelled = false;
     let retryTimeout: ReturnType<typeof setTimeout> | null = null;
     const run = (isRetry = false) => {
-      checkBackendHealth(apiBaseUrl).then((ok) => {
+      checkBackendHealth(resolvedBackendUrl).then((ok) => {
         if (cancelled) return;
         setBackendUnavailable(!ok);
         if (!ok && !isRetry) {
@@ -82,7 +126,7 @@ export function DrugInteractionForm({
       cancelled = true;
       if (retryTimeout) clearTimeout(retryTimeout);
     };
-  }, [apiBaseUrl]);
+  }, [apiBaseUrl, resolvedBackendUrl]);
 
   const filteredSubstancesA = React.useMemo(
     () =>
@@ -116,7 +160,7 @@ export function DrugInteractionForm({
     setState({ status: "loading" });
 
     try {
-      const url = new URL("/interaction", apiBaseUrl);
+      const url = new URL("/interaction", resolvedBackendUrl);
       url.searchParams.set("drug_a", trimmedA);
       url.searchParams.set("drug_b", trimmedB);
 
@@ -277,7 +321,7 @@ export function DrugInteractionForm({
               size="sm"
               className="shrink-0"
               onClick={() => {
-                checkBackendHealth(apiBaseUrl).then((ok) => setBackendUnavailable(!ok));
+                checkBackendHealth(resolvedBackendUrl).then((ok) => setBackendUnavailable(!ok));
               }}
             >
               Check again
@@ -330,7 +374,7 @@ export function DrugInteractionForm({
 
         <div className="flex items-center justify-between gap-2">
           <p className="text-xs text-muted-foreground">
-            Graph-backed interaction engine. Results do not replace clinical judgment.
+            Pick from the list or type any substance name. Graph-backed; results do not replace clinical judgment.
           </p>
           <Button type="submit" disabled={state.status === "loading" || backendUnavailable === true}>
             {state.status === "loading" ? "Checking…" : "Check interaction"}

@@ -7,7 +7,7 @@ export default function HomePage() {
   return (
     <main className="mx-auto max-w-2xl px-6 py-10 space-y-10">
       <div>
-        <h1 className="text-2xl font-semibold text-stone-800">if-you-say-yes</h1>
+        <h1 className="text-2xl font-semibold text-stone-800">if you say yes</h1>
         <p className="mt-2 text-stone-600">
           Drug interaction engine and substance profiles.
         </p>

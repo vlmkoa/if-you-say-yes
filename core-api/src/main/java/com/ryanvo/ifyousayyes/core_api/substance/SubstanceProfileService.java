@@ -38,11 +38,17 @@ public class SubstanceProfileService {
 			if (dto.topAdverseEventsJson() != null) {
 				profile.setTopAdverseEventsJson(dto.topAdverseEventsJson());
 			}
+			if (dto.halfLife() != null) {
+				profile.setHalfLife(dto.halfLife());
+			}
+			if (dto.bioavailability() != null) {
+				profile.setBioavailability(dto.bioavailability());
+			}
 		} else {
 			profile = new SubstanceProfile();
 			profile.setName(dto.name());
-			profile.setHalfLife(BigDecimal.ZERO);
-			profile.setBioavailability(BigDecimal.ZERO);
+			profile.setHalfLife(dto.halfLife() != null ? dto.halfLife() : BigDecimal.ZERO);
+			profile.setBioavailability(dto.bioavailability() != null ? dto.bioavailability() : BigDecimal.ZERO);
 			profile.setDosageJson(dto.dosageJson());
 			profile.setTopAdverseEventsJson(dto.topAdverseEventsJson());
 		}

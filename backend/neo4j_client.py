@@ -15,6 +15,13 @@ def _get_env_var(name: str) -> str:
     return value
 
 
+def _uri_for_ssl(uri: str) -> str:
+    """If NEO4J_TRUST_SELF_SIGNED is set, use +ssc scheme to accept self-signed certs (e.g. corporate proxy)."""
+    if os.getenv("NEO4J_TRUST_SELF_SIGNED", "").strip().lower() in ("1", "true", "yes"):
+        return uri.replace("neo4j+s://", "neo4j+ssc://").replace("bolt+s://", "bolt+ssc://")
+    return uri
+
+
 def get_driver() -> Driver:
     """
     Lazily create and return a Neo4j driver instance for an AuraDB database.
@@ -23,10 +30,12 @@ def get_driver() -> Driver:
     - NEO4J_URI
     - NEO4J_USERNAME
     - NEO4J_PASSWORD
+    - NEO4J_TRUST_SELF_SIGNED (optional): set to 1/true to use neo4j+ssc (accept self-signed certs)
     """
     global _driver
     if _driver is None:
         uri = _get_env_var("NEO4J_URI")
+        uri = _uri_for_ssl(uri)
         user = _get_env_var("NEO4J_USERNAME")
         password = _get_env_var("NEO4J_PASSWORD")
 
@@ -60,17 +69,14 @@ def neo4j_available() -> bool:
 def get_interaction(drug_a: str, drug_b: str) -> Optional[Dict[str, Any]]:
     """
     Look for an [:INTERACTS_WITH] relationship between two Substance nodes.
-
-    The Cypher query assumes a schema like:
-      (a:Substance {name: $drug_a})-[:INTERACTS_WITH {risk_level, mechanism}]-(b:Substance {name: $drug_b})
-
-    Returns a dict containing "risk_level" and "mechanism" if an interaction is found,
-    otherwise returns None.
+    Callers should pass lowercased names (API layer normalizes before calling).
+    Cypher uses toLower(a.name) so graph data can be any case.
     """
     driver = get_driver()
 
     cypher = """
-    MATCH (a:Substance {name: $drug_a})-[r:INTERACTS_WITH]-(b:Substance {name: $drug_b})
+    MATCH (a:Substance)-[r:INTERACTS_WITH]-(b:Substance)
+    WHERE toLower(a.name) = $drug_a AND toLower(b.name) = $drug_b
     RETURN r.risk_level AS risk_level,
            r.mechanism  AS mechanism
     LIMIT 1

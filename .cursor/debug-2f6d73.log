@@ -1,0 +1,4 @@
+{"sessionId":"2f6d73","location":"drug-interaction-form.tsx:useEffect:entry","message":"Effect run","data":{"hypothesisId":"H4,H5","apiBaseUrl":"","resolvedBackendUrl":"http://localhost:8000"},"timestamp":1773535668961}
+{"sessionId":"2f6d73","location":"drug-interaction-form.tsx:checkBackendHealth:entry","message":"Health check URL","data":{"hypothesisId":"H1","apiBaseUrl":"http://localhost:8000","healthUrl":"http://localhost:8000/health"},"timestamp":1773535668962}
+{"sessionId":"2f6d73","location":"drug-interaction-form.tsx:checkBackendHealth:response","message":"Fetch result","data":{"hypothesisId":"H2,H3","status":200,"ok":true,"statusText":"OK","url":"http://localhost:8000/health"},"timestamp":1773535669291}
+{"sessionId":"2f6d73","location":"drug-interaction-form.tsx:useEffect:setState","message":"Setting backendUnavailable","data":{"hypothesisId":"H4","ok":true,"backendUnavailable":false,"isRetry":false},"timestamp":1773535669292}

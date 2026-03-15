@@ -45,7 +45,13 @@ NEO4J_USERNAME=neo4j
 NEO4J_PASSWORD=your-password
 ```
 
-Replace with your real values. Then restart the backend:
+Replace with your real values. If you see **SSL certificate verify failed: self-signed certificate in certificate chain** (e.g. behind a corporate proxy or VPN that does TLS inspection), add:
+
+```env
+NEO4J_TRUST_SELF_SIGNED=1
+```
+
+This makes the driver use the `neo4j+ssc` scheme so the connection accepts the proxy’s certificate. Then restart the backend:
 
 ```powershell
 docker compose up -d backend
@@ -114,7 +120,23 @@ To populate substance profiles with dosage (PsychonautWiki) and top adverse even
 python scripts/sync_substances_to_core_api.py
 ```
 
-This uses the default substance list (`caffeine`, `ibuprofen`, `alcohol`, `lsd`, `mdma`). To sync specific substances:
+The **dashboard reads only from PostgreSQL** (core-api). Neo4j is only for the interaction checker. To get many drugs on the dashboard, sync using names from PsychonautWiki (recommended) or TripSit:
+
+**Many drugs from PsychonautWiki (recommended; not tied to TripSit/Neo4j):**
+
+```powershell
+python scripts/sync_substances_to_core_api.py --from-psychonautwiki
+```
+
+This fetches up to 500 substance names from the PsychonautWiki API, then for each fetches dosage (PW) and adverse events (OpenFDA) and writes to core-api. Use `--limit 1000` for more.
+
+**Every substance in TripSit combos (same set as interaction data):**
+
+```powershell
+python scripts/sync_substances_to_core_api.py --all-tripsit
+```
+
+The default list is small (5 substances). To sync only specific substances:
 
 ```powershell
 python scripts/sync_substances_to_core_api.py caffeine paracetamol

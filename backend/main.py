@@ -88,11 +88,13 @@ async def read_interaction(
     and return its risk level and mechanism.
     """
     # Basic validation (Pydantic also validates but this gives clearer 400s for empty strings)
-    if not drug_a.strip() or not drug_b.strip():
+    trimmed_a = drug_a.strip()
+    trimmed_b = drug_b.strip()
+    if not trimmed_a or not trimmed_b:
         raise HTTPException(status_code=400, detail="Both drug_a and drug_b must be non-empty strings.")
 
     try:
-        result: Optional[dict] = get_interaction(drug_a.strip(), drug_b.strip())
+        result: Optional[dict] = get_interaction(trimmed_a.lower(), trimmed_b.lower())
     except Neo4jError as e:
         logger.exception("Error while querying Neo4j for interaction.")
         # 503 when Neo4j is unreachable (e.g. AuraDB sleeping, network down)
@@ -108,8 +110,8 @@ async def read_interaction(
         )
 
     return InteractionResult(
-        drug_a=drug_a.strip(),
-        drug_b=drug_b.strip(),
+        drug_a=trimmed_a,
+        drug_b=trimmed_b,
         risk_level=str(result.get("risk_level")),
         mechanism=str(result.get("mechanism")),
     )

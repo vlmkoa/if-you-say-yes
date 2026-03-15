@@ -10,6 +10,14 @@ Requires: NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD in env (e.g. .env).
 import asyncio
 import os
 import sys
+
+# Load .env from project root so NEO4J_* are set when run as: python scripts/load_tripsit_to_neo4j.py
+try:
+    from dotenv import load_dotenv
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    load_dotenv(os.path.join(root, ".env"))
+except ImportError:
+    pass
 from typing import Any, Dict, Iterator, Tuple
 
 import httpx
@@ -48,6 +56,13 @@ async def fetch_combos(client: httpx.AsyncClient) -> Dict[str, Any]:
     return r.json()
 
 
+def _uri_for_ssl(uri: str) -> str:
+    """If NEO4J_TRUST_SELF_SIGNED is set, use +ssc scheme to accept self-signed certs (e.g. corporate proxy)."""
+    if os.getenv("NEO4J_TRUST_SELF_SIGNED", "").strip().lower() in ("1", "true", "yes"):
+        return uri.replace("neo4j+s://", "neo4j+ssc://").replace("bolt+s://", "bolt+ssc://")
+    return uri
+
+
 def main_sync(combos: Dict[str, Any]) -> None:
     import neo4j
     uri = os.getenv("NEO4J_URI")
@@ -57,6 +72,7 @@ def main_sync(combos: Dict[str, Any]) -> None:
         print("Set NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD", file=sys.stderr)
         sys.exit(1)
     database = os.getenv("NEO4J_DATABASE") or "neo4j"
+    uri = _uri_for_ssl(uri)
 
     with neo4j.GraphDatabase.driver(uri, auth=(user, password)) as driver:
         with driver.session(database=database) as session:

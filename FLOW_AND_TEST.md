@@ -176,7 +176,7 @@ This GETs **/health** and **/interaction?drug_a=caffeine&drug_b=alcohol** and pr
 | Check interaction for 2 drugs | Home → type two substances → “Check interaction”. |
 | See substance profiles      | Dashboard link or http://localhost:3000/dashboard. |
 | Populate interactions      | Run `python scripts/load_tripsit_to_neo4j.py` (Neo4j + .env required). |
-| Populate substances        | Run `python scripts/sync_substances_to_core_api.py` (core-api up). |
+| Populate substances        | Run `python scripts/sync_substances_to_core_api.py` (default list) or `... --all-tripsit` (every TripSit substance). |
 | Refresh all integrated data| Run `python scripts/refresh_data.py`. |
 | Test backend health        | GET http://localhost:8000/health. |
 | Test core-api health       | GET http://localhost:8080/actuator/health. |

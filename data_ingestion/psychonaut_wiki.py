@@ -10,12 +10,22 @@ from .base import DataIngestor, NormalizedResult
 
 PSYCHONAUTWIKI_GRAPHQL_URL = "https://api.psychonautwiki.org"
 
+# List substance names only (for --from-psychonautwiki sync). Empty query + limit returns many.
+SUBSTANCES_NAMES_QUERY = """
+query Substances($query: String!, $limit: Int) {
+  substances(query: $query, limit: $limit) {
+    name
+  }
+}
+"""
+
 SUBSTANCES_QUERY = """
 query Substances($query: String!) {
   substances(query: $query) {
     name
     roas {
       name
+      bioavailability { min max }
       dose {
         threshold
         light { min, max }
@@ -161,11 +171,51 @@ class PsychonautWikiIngestor(DataIngestor):
 
         raw = substances[0]
         dosage_profile = _response_to_dosage_profile(raw)
+        roas_raw = raw.get("roas") or []
+        # Use first ROA's bioavailability (often oral) as a single percentage for the dashboard
+        bioavailability_pct = None
+        for roa in roas_raw:
+            if not isinstance(roa, dict):
+                continue
+            bio = roa.get("bioavailability")
+            if isinstance(bio, dict):
+                mn, mx = bio.get("min"), bio.get("max")
+                if mn is not None or mx is not None:
+                    try:
+                        bioavailability_pct = float(mn if mx is None else mx if mn is None else (float(mn) + float(mx)) / 2)
+                        break
+                    except (TypeError, ValueError):
+                        pass
 
         return {
             "source": self.source_name,
             "substance": raw.get("name") or substance,
             "dosage_profile": dosage_profile,
-            "roas": raw.get("roas"),
+            "roas": roas_raw,
             "raw": raw,
+            "bioavailability": bioavailability_pct,
         }
+
+    async def fetch_all_substance_names(self, limit: int = 1000) -> List[str]:
+        """
+        Fetch up to `limit` substance names from PsychonautWiki (broad query).
+        Use for syncing "all" PW substances to the dashboard without TripSit.
+        """
+        payload: Dict[str, Any] = {
+            "query": SUBSTANCES_NAMES_QUERY,
+            "variables": {"query": "", "limit": limit},
+        }
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await with_backoff(
+                client.post,
+                PSYCHONAUTWIKI_GRAPHQL_URL,
+                json=payload,
+            )
+            response.raise_for_status()
+            data = response.json()
+
+        if "errors" in data:
+            raise ValueError(f"GraphQL errors: {data['errors']}")
+
+        substances = data.get("data", {}).get("substances") or []
+        return [s.get("name") for s in substances if isinstance(s, dict) and s.get("name")]

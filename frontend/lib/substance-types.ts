@@ -8,6 +8,14 @@ export interface SubstanceProfile {
   halfLife: number;
   bioavailability: number;
   standardDosage: string | null;
+  /** PsychonautWiki dosage profile JSON (ROAs, dose, duration). */
+  dosageJson?: string | null;
+  /** OpenFDA top adverse events JSON array. */
+  topAdverseEventsJson?: string | null;
+  /** Classification/category (e.g. stimulant, depressant). For future APIs. */
+  classification?: string | null;
+  /** Possible effects. For future APIs. */
+  effects?: string | null;
 }
 
 export interface PagedSubstances {
