@@ -49,6 +49,9 @@ public class SubstanceProfileService {
 			if (dto.bioavailability() != null) {
 				profile.setBioavailability(dto.bioavailability());
 			}
+			if (dto.addictionPotential() != null) {
+				profile.setAddictionPotential(dto.addictionPotential());
+			}
 		} else {
 			profile = new SubstanceProfile();
 			profile.setName(dto.name());
@@ -56,6 +59,9 @@ public class SubstanceProfileService {
 			profile.setBioavailability(dto.bioavailability() != null ? dto.bioavailability() : BigDecimal.ZERO);
 			profile.setDosageJson(dto.dosageJson());
 			profile.setTopAdverseEventsJson(dto.topAdverseEventsJson());
+			if (dto.addictionPotential() != null) {
+				profile.setAddictionPotential(dto.addictionPotential());
+			}
 		}
 		return repository.save(profile);
 	}

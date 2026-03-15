@@ -114,10 +114,18 @@ If PostgreSQL is down or core-api cannot reach it:
 
 ## 5. Syncing PsychonautWiki and OpenFDA into core-api (PostgreSQL)
 
-To populate substance profiles with dosage (PsychonautWiki) and top adverse events (OpenFDA), run the sync script with **core-api** up (e.g. `docker compose up -d core-api` or full stack):
+To populate substance profiles with dosage (PsychonautWiki) and top adverse events (OpenFDA), run the sync script with **core-api** up (e.g. `docker compose up -d core-api` or full stack).
+
+**Option A — local Python** (requires `pip install -r requirements.txt` or `python -m pip install httpx`):
 
 ```powershell
 python scripts/sync_substances_to_core_api.py
+```
+
+**Option B — Docker** (dependencies are installed in the image at build time; no local Python env needed). First build: `docker compose build sync`. Then, with core-api running:
+
+```powershell
+docker compose run --rm sync python scripts/sync_substances_to_core_api.py --from-psychonautwiki
 ```
 
 The **dashboard reads only from PostgreSQL** (core-api). Neo4j is only for the interaction checker. To get many drugs on the dashboard, sync using names from PsychonautWiki (recommended) or TripSit:
@@ -142,7 +150,7 @@ The default list is small (5 substances). To sync only specific substances:
 python scripts/sync_substances_to_core_api.py caffeine paracetamol
 ```
 
-The script calls PsychonautWiki and OpenFDA ingestors, then **POST /api/substances/sync** to create or update profiles (including `dosageJson` and `topAdverseEventsJson`). **GET /api/substances** will then return these profiles with the new fields.
+The script calls PsychonautWiki and OpenFDA ingestors, then **POST /api/substances/sync** to create or update profiles (including `dosageJson`, `topAdverseEventsJson`, and optional `addictionPotential`). **GET /api/substances** will then return these profiles. Substances with `addictionPotential` > 7 show the Phase 3 risk warning modal on their detail page; the sync script sets this for a small set of known high-risk substances (e.g. cocaine, alcohol). Re-run sync to populate or update it.
 
 ---
 

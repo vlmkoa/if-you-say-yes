@@ -13,5 +13,6 @@ public record SubstanceSyncDto(
 		String dosageJson,
 		String topAdverseEventsJson,
 		BigDecimal halfLife,
-		BigDecimal bioavailability
+		BigDecimal bioavailability,
+		BigDecimal addictionPotential
 ) {}

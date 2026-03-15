@@ -26,6 +26,111 @@ function formatVal(value: number | null | undefined, suffix: string): string {
   return `${value}${suffix}`;
 }
 
+// Parsed dosage JSON shape (e.g. from PsychonautWiki-style data)
+type DoseRange = { min: number; max: number; units: string | null };
+type DurationRange = { min: number; max: number; units: string | null };
+type Roa = {
+  name: string;
+  dose: {
+    threshold?: DoseRange;
+    light?: DoseRange;
+    common?: DoseRange;
+    strong?: DoseRange;
+    heavy?: DoseRange;
+  };
+  duration: {
+    onset?: DurationRange;
+    comeup?: DurationRange;
+    peak?: DurationRange;
+    offset?: DurationRange;
+    total?: DurationRange;
+  };
+};
+type DosageData = { name?: string; roas?: Roa[] };
+
+function parseDosageJson(json: string | undefined | null): DosageData | null {
+  if (!json?.trim()) return null;
+  try {
+    const data = JSON.parse(json) as DosageData;
+    return data?.roas ? data : null;
+  } catch {
+    return null;
+  }
+}
+
+function formatRange(range: DoseRange | undefined, defaultUnit = ""): string {
+  if (!range) return "—";
+  const u = range.units ?? defaultUnit;
+  const s = u ? ` ${u}` : "";
+  if (range.min === range.max) return `${range.min}${s}`;
+  return `${range.min}–${range.max}${s}`;
+}
+
+function formatDuration(range: DurationRange | undefined): string {
+  if (!range) return "—";
+  const u = range.units ?? "min";
+  if (range.min === range.max) return `${range.min} ${u}`;
+  return `${range.min}–${range.max} ${u}`;
+}
+
+function DosageDisplay({ dosageJson }: { dosageJson: string }) {
+  const data = parseDosageJson(dosageJson);
+  if (!data?.roas?.length) return null;
+
+  const doseLabels: { key: keyof Roa["dose"]; label: string }[] = [
+    { key: "threshold", label: "Threshold" },
+    { key: "light", label: "Light" },
+    { key: "common", label: "Common" },
+    { key: "strong", label: "Strong" },
+    { key: "heavy", label: "Heavy" },
+  ];
+  const durationLabels: { key: keyof Roa["duration"]; label: string }[] = [
+    { key: "onset", label: "Onset" },
+    { key: "comeup", label: "Come up" },
+    { key: "peak", label: "Peak" },
+    { key: "offset", label: "Offset" },
+    { key: "total", label: "Total" },
+  ];
+
+  return (
+    <div className="mt-6 border-t border-stone-200 pt-4">
+      <h3 className="text-sm font-semibold text-stone-700 mb-3">Dosage by route</h3>
+      <p className="text-xs text-stone-500 mb-4">Reference ranges only — not medical advice.</p>
+      <div className="space-y-6">
+        {data.roas.map((roa) => (
+          <div key={roa.name} className="rounded-lg border border-stone-200 bg-stone-50/80 p-4">
+            <h4 className="text-sm font-medium text-stone-800 capitalize mb-3">{roa.name}</h4>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <p className="text-xs font-medium text-stone-500 uppercase tracking-wide mb-2">Dose</p>
+                <dl className="space-y-1.5 text-sm">
+                  {doseLabels.map(({ key, label }) => (
+                    <div key={key} className="flex justify-between gap-2">
+                      <dt className="text-stone-500">{label}</dt>
+                      <dd className="font-medium text-stone-700 tabular-nums">{formatRange(roa.dose[key])}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-stone-500 uppercase tracking-wide mb-2">Duration</p>
+                <dl className="space-y-1.5 text-sm">
+                  {durationLabels.map(({ key, label }) => (
+                    <div key={key} className="flex justify-between gap-2">
+                      <dt className="text-stone-500">{label}</dt>
+                      <dd className="font-medium text-stone-700 tabular-nums">{formatDuration(roa.duration[key])}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function SubstanceProfilePage({ id }: { id: string }) {
   const [profile, setProfile] = React.useState<SubstanceProfile | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -122,14 +227,7 @@ export function SubstanceProfilePage({ id }: { id: string }) {
               </div>
             )}
           </dl>
-          {profile.dosageJson && (
-            <div className="mt-6 border-t border-stone-100 pt-4">
-              <h3 className="text-sm font-medium text-stone-500">Dosage (reference)</h3>
-              <pre className="mt-1 overflow-x-auto rounded bg-stone-50 p-3 text-xs text-stone-700">
-                {profile.dosageJson}
-              </pre>
-            </div>
-          )}
+          {profile.dosageJson && <DosageDisplay dosageJson={profile.dosageJson} />}
         </article>
       </main>
     </div>

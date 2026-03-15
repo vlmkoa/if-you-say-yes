@@ -1,28 +1,56 @@
 import Link from "next/link";
-import { ShieldAlert, FlaskConical, Activity, ArrowRight } from "lucide-react";
 import { DrugInteractionForm } from "@/components/drug-interaction-form";
 
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8000";
+
+function IconShield({ className }: { className?: string }) {
+  return (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    </svg>
+  );
+}
+function IconFlask({ className }: { className?: string }) {
+  return (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M10 2v7.31" /><path d="M14 9.3V2" /><path d="M8.5 2h7" /><path d="M14 9.3a6.5 6.5 0 1 1-4 0" /><path d="M5.52 16h12.96" />
+    </svg>
+  );
+}
+function IconActivity({ className }: { className?: string }) {
+  return (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+    </svg>
+  );
+}
+function IconArrowRight({ className }: { className?: string }) {
+  return (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M5 12h14" /><path d="m12 5 7 7-7 7" />
+    </svg>
+  );
+}
 
 const quickFacts = [
   {
     title: "Fast interaction checks",
     description:
       "Compare two substances instantly through the graph-backed interaction service.",
-    icon: ShieldAlert,
+    icon: IconShield,
   },
   {
     title: "Clinical-style profiles",
     description:
       "Browse half-life, bioavailability, and standard dosage from the structured profile dashboard.",
-    icon: FlaskConical,
+    icon: IconFlask,
   },
   {
     title: "Action-focused outputs",
     description:
       "Highlight caution and dangerous combinations with clearer visual feedback.",
-    icon: Activity,
+    icon: IconActivity,
   },
 ];
 
@@ -48,7 +76,7 @@ export default function HomePage() {
                 className="inline-flex items-center gap-2 rounded-xl bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-900 shadow-lg shadow-cyan-400/20 transition hover:bg-cyan-300 hover:shadow-cyan-400/25"
               >
                 Check interaction
-                <ArrowRight className="h-4 w-4" />
+                <IconArrowRight className="h-4 w-4" />
               </Link>
               <Link
                 href="/dashboard"
@@ -140,7 +168,7 @@ export default function HomePage() {
               className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-medium text-white transition hover:bg-white/10"
             >
               Open dashboard
-              <ArrowRight className="h-4 w-4" />
+              <IconArrowRight className="h-4 w-4" />
             </Link>
           </div>
         </div>

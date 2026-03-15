@@ -74,6 +74,20 @@ services:
       - "8000:8000"
     restart: unless-stopped
 
+  # Python scripts (sync substances to core-api). Dependencies installed at build.
+  # Run: docker compose run --rm sync python scripts/sync_substances_to_core_api.py --from-psychonautwiki
+  sync:
+    build:
+      context: .
+      dockerfile: scripts/Dockerfile
+    container_name: ifyousayyes-sync
+    environment:
+      CORE_API_URL: http://core-api:8080
+    depends_on:
+      core-api:
+        condition: service_healthy
+    # Not started with 'up'; run one-off: docker compose run --rm sync python scripts/...
+
   nginx:
     image: nginx:alpine
     container_name: ifyousayyes-nginx

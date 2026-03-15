@@ -49,6 +49,18 @@ COMBOS_URL = "https://raw.githubusercontent.com/TripSit/drugs/main/combos.json"
 # Example substance list when no args and no --all-tripsit
 DEFAULT_SUBSTANCES = ["caffeine", "ibuprofen", "alcohol", "lsd", "mdma"]
 
+# Known high addiction potential (0–10). Used to show RiskWarning on detail page when > 7.
+# Keys are lowercased for lookup; add more as needed.
+ADDICTION_POTENTIAL_OVERRIDE: Dict[str, float] = {
+    "cocaine": 9,
+    "heroin": 9,
+    "methamphetamine": 9,
+    "nicotine": 8,
+    "alcohol": 7.5,
+    "mdma": 6,
+    "amphetamine": 8,
+}
+
 
 def all_substances_from_tripsit_combos(combos: Dict[str, Any]) -> List[str]:
     """Return sorted unique substance names from TripSit combos (top-level + all nested keys)."""
@@ -70,6 +82,7 @@ async def sync_one(
     top_adverse_json: str | None,
     half_life: float | None = None,
     bioavailability: float | None = None,
+    addiction_potential: float | None = None,
 ) -> bool:
     payload = {
         "name": name,
@@ -77,6 +90,7 @@ async def sync_one(
         "topAdverseEventsJson": top_adverse_json,
         "halfLife": round(half_life, 2) if half_life is not None else None,
         "bioavailability": round(bioavailability, 2) if bioavailability is not None else None,
+        "addictionPotential": round(addiction_potential, 1) if addiction_potential is not None else None,
     }
     r = await client.post(SYNC_ENDPOINT, json=payload, timeout=TIMEOUT)
     if r.status_code != 200:
@@ -116,7 +130,11 @@ async def main(substances: List[str]) -> None:
                     top_adverse_json = json.dumps(fda_out["top_adverse_events"])
             except Exception as e:
                 print(f"  [{i}/{len(substances)}] {name}: OpenFDA failed: {e}")
-            if await sync_one(client, name, dosage_json, top_adverse_json, half_life, bioavailability):
+            addiction = ADDICTION_POTENTIAL_OVERRIDE.get(name.strip().lower()) if name else None
+            if await sync_one(
+                client, name, dosage_json, top_adverse_json,
+                half_life, bioavailability, addiction,
+            ):
                 synced += 1
     print(f"Synced {synced}/{len(substances)} substances to core-api.")
 
