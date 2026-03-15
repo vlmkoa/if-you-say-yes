@@ -1,3 +1,58 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-slate-800;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-slate-950 text-slate-100;
+  }
+
+  ::selection {
+    @apply bg-cyan-400/25 text-white;
+  }
+}
+
+@layer components {
+  .app-shell {
+    @apply mx-auto max-w-6xl px-4 sm:px-6;
+  }
+
+  .glass-card {
+    @apply rounded-2xl border border-white/[0.08] bg-white/[0.04] shadow-xl shadow-black/10 backdrop-blur-sm;
+  }
+
+  .section-title {
+    @apply text-3xl font-semibold tracking-tight text-white sm:text-4xl;
+  }
+
+  .section-copy {
+    @apply text-base leading-7 text-slate-400;
+  }
+
+  .soft-label {
+    @apply text-xs font-semibold uppercase tracking-widest text-cyan-400;
+  }
+
+  .pill {
+    @apply inline-flex items-center rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-slate-200;
+  }
+
+  .metric-card {
+    @apply rounded-xl border border-white/[0.08] bg-slate-900/60 p-5;
+  }
+
+  .subtle-grid {
+    background-image:
+      linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+}
