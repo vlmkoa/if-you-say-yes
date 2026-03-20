@@ -11,9 +11,12 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN mkdir -p public
 ENV NEXT_TELEMETRY_DISABLED=1
-# Optional: pass NEXT_PUBLIC_BACKEND_URL when building for nginx (e.g. --build-arg NEXT_PUBLIC_BACKEND_URL=http://localhost/api/backend)
+# Baked into client JS at build time — set via docker-compose build.args or:
+#   docker build --build-arg NEXT_PUBLIC_BACKEND_URL=... --build-arg NEXT_PUBLIC_SPRING_API_URL=...
 ARG NEXT_PUBLIC_BACKEND_URL
 ENV NEXT_PUBLIC_BACKEND_URL=${NEXT_PUBLIC_BACKEND_URL}
+ARG NEXT_PUBLIC_SPRING_API_URL
+ENV NEXT_PUBLIC_SPRING_API_URL=${NEXT_PUBLIC_SPRING_API_URL}
 RUN npm run build
 
 # Run

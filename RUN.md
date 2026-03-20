@@ -24,6 +24,26 @@ Wait until all containers are up (postgres, core-api, frontend, backend).
 - Use the **frontend** in the browser for the home page and the dashboard (grid of substances).
 - The **drug interaction form** (Phase 1) must be placed on a page with `apiBaseUrl="http://localhost:8000"` so it calls the Python backend. If that page is not set up yet, you can still test the backend at http://localhost:8000/docs with `GET /interaction?drug_a=...&drug_b=...`.
 
+### 2.1 Public demo (ngrok) — Docker frontend must rebuild
+
+Next.js **bakes** `NEXT_PUBLIC_*` into the client JS at **build** time. For `docker compose`, set the URLs **browsers will use** (your machine’s `localhost` is wrong for remote users).
+
+In the project root **`.env`** (same file as `NEO4J_*`), add:
+
+```env
+NEXT_PUBLIC_BACKEND_URL=https://your-backend.ngrok-free.dev
+NEXT_PUBLIC_SPRING_API_URL=https://your-core-api.ngrok-free.dev
+```
+
+Then rebuild the frontend image so those values are compiled in:
+
+```powershell
+docker compose build --no-cache frontend
+docker compose up -d frontend
+```
+
+If ngrok URLs change, update `.env` and run **`docker compose build --no-cache frontend`** again. For local-only use, omit these variables; compose defaults to `http://localhost:8000` and `http://localhost:8080`.
+
 ---
 
 ## 3. Making the backend (Neo4j) work correctly
@@ -320,13 +340,13 @@ Then open **http://localhost** (port 80). Nginx proxies:
 - **/** → frontend (Next.js)
 - **/api/backend/** → Python backend (e.g. `/api/backend/interaction`, `/api/backend/health`)
 
-**Interaction form behind Nginx:** The form must call the backend via Nginx so the request is same-origin. Build the frontend with the backend base URL under Nginx:
+**Interaction form behind Nginx:** The form must call the backend via Nginx so the request is same-origin. Build the frontend with the backend base URL under Nginx (and core-api if proxied), e.g. in root `.env`:
 
-```powershell
-cd frontend
-docker build --build-arg NEXT_PUBLIC_BACKEND_URL=http://localhost/api/backend -t ifyousayyes-frontend .
+```env
+NEXT_PUBLIC_BACKEND_URL=http://localhost/api/backend
+NEXT_PUBLIC_SPRING_API_URL=http://localhost/api/core
 ```
 
-Or set `NEXT_PUBLIC_BACKEND_URL=http://localhost/api/backend` in your env before `npm run build`. Then the form will request `http://localhost/api/backend/health` and `http://localhost/api/backend/interaction` when you use the app at http://localhost.
+Then `docker compose build frontend` (or `cd frontend` and `docker build` with both `--build-arg` values). Or set the same vars before `npm run build`.
 
-**Without Nginx:** Use http://localhost:3000 (frontend), http://localhost:8000 (backend), http://localhost:8080 (core-api) as described in section 2. No build-arg change needed.
+**Without Nginx:** Use http://localhost:3000 (frontend), http://localhost:8000 (backend), http://localhost:8080 (core-api) as described in section 2. Defaults need no extra build args.
