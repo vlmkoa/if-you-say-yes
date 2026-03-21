@@ -8,16 +8,19 @@
 │             │     │                                                           │
 │  localhost  │────▶│  Frontend (Next.js :3000)                                │
 │  :3000      │     │    • Home: interaction form + link to dashboard          │
+│             │     │    • /reagent: upload image → Python backend              │
 │             │     │    • Dashboard: substance grid (server-fetched)            │
 └──────┬──────┘     └───────┬─────────────────────────────┬────────────────────┘
        │                    │                             │
        │  GET /health       │  GET /api/substances         │
        │  GET /interaction  │  (server-side)               │
+       │  POST /reagent/analyze                         │
        ▼                    ▼                             ▼
        │             Python backend (:8000)         core-api (:8080)
        │             • Neo4j driver                 • Spring Boot + JPA
        │             • GET /health                  • PostgreSQL
        │             • GET /interaction            • GET /api/substances
+       │             • POST /reagent/analyze ──► OpenAI GPT-4o (vision) *
        │                    │                      • POST /api/substances/sync
        │                    ▼                      • GET /actuator/health
        │             Neo4j (AuraDB or local)
@@ -25,6 +28,9 @@
        │             • INTERACTS_WITH edges
        │
        └────────────────────┴─────────────────────────────┘
+
+* Reagent flow: LLM returns structured JSON (colors + reagent hints); substance
+  suggestions are computed locally from backend/reagent_chart_data.py (no LLM).
 ```
 
 **Data sources (optional, for loading data):**
@@ -60,8 +66,71 @@ User opens **http://localhost:3000** (or http://localhost if using the nginx pro
 3. User sees a grid of **substance profiles** (name, half-life, bioavailability, standard dosage; plus dosage/adverse JSON if synced).
 4. If core-api or PostgreSQL is down: user sees **“Substance list temporarily unavailable. The database may be offline.”**
 
+### Reagent test (`/reagent`)
+1. User opens **http://localhost:3000/reagent**.
+2. Optionally selects a **reagent test** from the dropdown and/or types context (e.g. “Marquis”, “column Md”) if the photo doesn’t show the kit name.
+3. User uploads an image; the browser **POST**s multipart data to **`POST /reagent/analyze`** on the Python backend (`NEXT_PUBLIC_BACKEND_URL`, default `http://localhost:8000`).
+4. The backend calls **OpenAI GPT-4o (vision)** to extract **observable** data only (hex color(s), optional **reagent method** / chart column, visible text). It does **not** ask the model to name an unknown street sample as a specific drug.
+5. The backend **resolves** which chart column applies (vision `method` → optional form `reagent` → text in `prompt` → OCR labels when there is a single swatch).
+6. For each color, it runs **deterministic** RGB distance matching against **`backend/reagent_chart_data.py`** for that reagent only, then returns ranked substance rows + disclaimers.
+
+**Requirements:** `OPENAI_API_KEY` on the backend. Without it, `/reagent/analyze` returns **503**.
+
 ### Optional: Nginx
 If you run with **nginx** (port 80), the user goes to **http://localhost**. Nginx routes **/** to the frontend and **/api/backend/** to the Python backend. The interaction form must be built with `NEXT_PUBLIC_BACKEND_URL=http://localhost/api/backend` so it talks to the backend through Nginx.
+
+---
+
+## 2b. Where LLMs are used (and where they are not)
+
+### Summary
+
+| Use case | Model | Code | When it runs |
+|----------|-------|------|----------------|
+| **Reagent image analysis** | **gpt-4o** (vision) | `backend/reagent_vision.py` → `extract_vision_from_image()` | User uploads an image on `/reagent`; backend sends image + instructions to OpenAI; model returns **JSON** (hexes, optional `method` per swatch, `labels`, `description`). |
+| **Category fallback** | **gpt-4o-mini** (text) | `scripts/assign_categories.py` | Optional **offline** script: if mapping/heuristics can’t classify a substance name, script asks the LLM to pick one of the fixed categories. |
+| **Interaction reference helper** | **gpt-4o-mini** (text) | `scripts/populate_interaction_references.py` | Optional **offline** script: suggests a “similar” TripSit substance for Postgres `interactionReference`. |
+
+**Not using an LLM:** drug–drug **GET /interaction** (Neo4j only), dashboard **GET /api/substances**, core-api CRUD, reagent **substance ranking** (pure math vs `REAGENT_CHART`), Neo4j loaders.
+
+### Reagent flow (LLM + deterministic) — detail
+
+```
+User image + optional text
+        │
+        ▼
+┌───────────────────┐
+│  FastAPI          │  POST /reagent/analyze
+│  backend/main.py  │  • multipart: image, prompt, reagent
+└─────────┬─────────┘
+          │
+          ▼
+┌───────────────────┐
+│  OpenAI API       │  chat.completions, model=gpt-4o,
+│  (vision)         │  user message = text + image_url (base64 data URI)
+└─────────┬─────────┘
+          │ assistant message: JSON string
+          ▼
+┌───────────────────┐
+│  reagent_vision   │  _parse_vision_json() — strip ``` fences, validate
+│                   │  resolve_reagent_for_color_entry() — Marquis, Md, …
+└─────────┬─────────┘
+          │
+          ▼
+┌───────────────────┐
+│  reagent_chart_   │  match_hex_to_drugs_for_reagent(hex, method)
+│  data.py          │  Euclidean distance in RGB; top-k % scores
+└─────────┬─────────┘
+          │
+          ▼
+   JSON response → frontend ReagentChat (bar chart + disclaimers)
+```
+
+**Design intent:** the LLM is a **perception + structure** step (what color is visible, what column header text appears). **Identification against the chart** is **deterministic** so behavior is auditable and doesn’t rely on the model inventing drug IDs.
+
+**Environment:** `OPENAI_API_KEY` in the process environment (e.g. project root `.env` for Docker backend). Quota/rate errors surface as **503** with a billing hint.
+
+**Optional offline LLM scripts** also read `OPENAI_API_KEY`; they never receive user-uploaded reagent photos.
 
 ---
 
@@ -146,7 +215,18 @@ Wait until all are up: `docker compose ps` (postgres, core-api, frontend, backen
    - Open http://localhost:3000/dashboard: message **“Substance list temporarily unavailable. The database may be offline.”**
    - GET http://localhost:8080/actuator/health → **503** (if the app is down or DB is down and actuator reflects it).
 
-### 3.6 One command to test APIs (no UI)
+### 3.6 Reagent analyze (LLM + chart)
+
+**Needs:** backend up, **`OPENAI_API_KEY`** set, `pip install openai` in the environment running the backend.
+
+1. Open http://localhost:3000/reagent.
+2. (Recommended for a single tube with no header) choose **Marquis** (or another reagent) from the dropdown, then upload a small JPEG/PNG of a colored liquid or a chart crop.
+3. Expect JSON back with `colors[]` (each with `hex`, optional `method`, `matches[]`, or `needs_reagent` if the test type couldn’t be resolved).
+4. If you get **503** and “OPENAI_API_KEY”: add the key to `.env` and `docker compose up -d backend` (or restart `uvicorn`).
+
+**Direct API (curl example):** multipart `image=@photo.jpg`, optional `prompt=Marquis`, optional `reagent=Marquis`.
+
+### 3.7 One command to test APIs (no UI)
 
 From project root:
 
@@ -156,7 +236,7 @@ python scripts/test_api_gets.py
 
 This hits **GET /interaction** (caffeine + alcohol) and **GET /api/substances** and prints status and a short summary.
 
-### 3.7 Curl-like backend checks (Neo4j)
+### 3.8 Curl-like backend checks (Neo4j)
 
 To verify the Python backend and Neo4j from the host (no browser):
 
@@ -172,7 +252,7 @@ This GETs **/health** and **/interaction?drug_a=caffeine&drug_b=alcohol** and pr
 
 | Goal                         | Action |
 |-----------------------------|--------|
-| Use the app in the browser  | Open http://localhost:3000, then Dashboard or interaction form. |
+| Use the app in the browser  | Open http://localhost:3000, then Dashboard, interaction form, or **/reagent**. |
 | Check interaction for 2 drugs | Home → type two substances → “Check interaction”. |
 | See substance profiles      | Dashboard link or http://localhost:3000/dashboard. |
 | Populate interactions      | Run `python scripts/load_tripsit_to_neo4j.py` (Neo4j + .env required). |
@@ -181,3 +261,5 @@ This GETs **/health** and **/interaction?drug_a=caffeine&drug_b=alcohol** and pr
 | Test backend health        | GET http://localhost:8000/health. |
 | Test core-api health       | GET http://localhost:8080/actuator/health. |
 | Test both GET endpoints    | Run `python scripts/test_api_gets.py`. |
+| Reagent test (LLM)         | `/reagent` with `OPENAI_API_KEY`; see §3.6. |
+| Read LLM architecture      | This file, **§2b**. |

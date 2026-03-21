@@ -8,7 +8,13 @@ from neo4j.exceptions import Neo4jError
 from pydantic import BaseModel, Field
 
 from .neo4j_client import get_interaction_resolved, close_driver, neo4j_available
-from .reagent_vision import extract_vision_from_image, match_hex_to_substances, ReagentVisionQuotaError
+from .reagent_chart_data import list_known_reagents
+from .reagent_vision import (
+    ReagentVisionQuotaError,
+    extract_vision_from_image,
+    match_hex_to_drugs_for_reagent,
+    resolve_reagent_for_color_entry,
+)
 
 
 logger = logging.getLogger("drug-interaction-api")
@@ -145,19 +151,24 @@ ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
     "/reagent/analyze",
     summary="Analyze reagent test image (vision + color match)",
     responses={
-        200: {"description": "Hex extracted and top-3 substance matches returned."},
+        200: {"description": "Hex extracted; matches scoped to reagent method when resolved."},
         400: {"model": ErrorResponse, "description": "Invalid or missing image."},
         503: {"model": ErrorResponse, "description": "Vision API not configured or failed."},
     },
 )
 async def reagent_analyze(
     image: UploadFile = File(..., description="Reagent test result image"),
-    prompt: str = Form("", description="Optional: your description of what is in the image (e.g. reagent name, which tube)."),
+    prompt: str = Form("", description="Context: which reagent/column if not visible (e.g. Marquis, Mandelin)."),
+    reagent: str = Form(
+        "",
+        description="Optional: explicit reagent test name (Marquis, Liebermann, Froehde, Mandelin, Mecke, Simon's, Robadope, Morris).",
+    ),
 ) -> dict:
     """
-    Accept multipart image upload (reagent drug test) and optional user description.
-    Extract hex color via vision LLM (using the description to label tubes/reagents when possible),
-    then return top-3 closest substance matches by Euclidean distance in RGB space.
+    Multipart image + optional text. Vision extracts hex(es) and, when possible, the reagent **method**
+    (column) for each color. Matching uses the chart for that method only (method → drug → reference hexes).
+    If the method cannot be resolved, `needs_reagent` is true and matches are empty until the user
+    specifies `reagent` or names the test in `prompt`.
     """
     if image.content_type not in ALLOWED_IMAGE_TYPES:
         raise HTTPException(
@@ -176,6 +187,7 @@ async def reagent_analyze(
         )
 
     user_prompt = (prompt or "").strip() or None
+    explicit_reagent = (reagent or "").strip() or None
     try:
         vision = await extract_vision_from_image(body, user_prompt=user_prompt)
     except ReagentVisionQuotaError as e:
@@ -187,17 +199,46 @@ async def reagent_analyze(
             detail="Could not extract color from this image. Use a clear photo of a reagent test (test tube or kit with visible liquid color). If the key is set, check backend logs for API errors.",
         )
 
+    vlabels = vision.get("labels") or []
+    color_rows = [c for c in vision["colors"] if c.get("hex")]
+    single = len(color_rows) == 1
+
     colors_out = []
-    for c in vision["colors"]:
+    for c in color_rows:
         hex_code = c.get("hex")
         if not hex_code:
             continue
-        matches = match_hex_to_substances(hex_code, top_k=3)
-        colors_out.append({"hex": hex_code, "label": c.get("label"), "matches": matches})
+        method_resolved = resolve_reagent_for_color_entry(
+            c,
+            explicit_reagent=explicit_reagent,
+            user_prompt=user_prompt,
+            vision_labels=vlabels if isinstance(vlabels, list) else [],
+            single_color=single,
+        )
+        needs = method_resolved is None
+        matches = (
+            []
+            if needs
+            else match_hex_to_drugs_for_reagent(hex_code, method_resolved, top_k=5)
+        )
+        colors_out.append(
+            {
+                "hex": hex_code,
+                "label": c.get("label"),
+                "method": method_resolved,
+                "needs_reagent": needs,
+                "matches": matches,
+            }
+        )
     return {
         "description": vision.get("description"),
-        "labels": vision.get("labels") or [],
+        "labels": vlabels,
         "colors": colors_out,
+        "known_reagents": list_known_reagents(),
+        "reference_note": (
+            "Chart data is approximate; verify with DanceSafe / your kit vendor instructions. "
+            "See backend/reagent_chart_data.py and https://dancesafe.org/testing-kit-instructions/"
+        ),
     }
 
 

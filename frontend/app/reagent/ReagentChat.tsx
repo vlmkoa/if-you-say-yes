@@ -7,11 +7,19 @@ const DISCLAIMER =
   "Colorimetric testing is presumptive and subject to contamination errors.";
 
 type Match = { substance: string; probability: number };
-type ColorResult = { hex: string; label: string | null; matches: Match[] };
+type ColorResult = {
+  hex: string;
+  label: string | null;
+  method: string | null;
+  needs_reagent?: boolean;
+  matches: Match[];
+};
 type AnalysisResult = {
   description: string | null;
   labels: string[];
   colors: ColorResult[];
+  known_reagents?: string[];
+  reference_note?: string;
 };
 
 type Message =
@@ -51,6 +59,7 @@ export function ReagentChat({ apiBaseUrl }: { apiBaseUrl: string }) {
   const [uploading, setUploading] = React.useState(false);
   const [fileInputEl, setFileInputEl] = React.useState<HTMLInputElement | null>(null);
   const [promptText, setPromptText] = React.useState("");
+  const [reagentChoice, setReagentChoice] = React.useState("");
 
   const backendUrl = (() => {
     const s = (apiBaseUrl || "").trim();
@@ -73,6 +82,7 @@ export function ReagentChat({ apiBaseUrl }: { apiBaseUrl: string }) {
       const form = new FormData();
       form.append("image", file);
       if (description) form.append("prompt", description);
+      if (reagentChoice.trim()) form.append("reagent", reagentChoice.trim());
       const res = await fetch(`${backendUrl}/reagent/analyze`, {
         method: "POST",
         body: form,
@@ -105,7 +115,11 @@ export function ReagentChat({ apiBaseUrl }: { apiBaseUrl: string }) {
       // Normalize legacy response { hex, matches } to { description, labels, colors }
       if (data && "hex" in data && "matches" in data && !("colors" in data && Array.isArray((data as AnalysisResult).colors))) {
         const leg = data as { hex: string; matches: Match[] };
-        data = { description: null, labels: [], colors: [{ hex: leg.hex, label: null, matches: leg.matches }] };
+        data = {
+          description: null,
+          labels: [],
+          colors: [{ hex: leg.hex, label: null, method: null, matches: leg.matches }],
+        };
       }
       setMessages((prev) => [
         ...prev,
@@ -166,6 +180,9 @@ export function ReagentChat({ apiBaseUrl }: { apiBaseUrl: string }) {
                 )}
                 {msg.role === "assistant" && msg.type === "analysis" && (
                   <div className="space-y-3">
+                    {msg.data.reference_note && (
+                      <p className="text-xs text-stone-500">{msg.data.reference_note}</p>
+                    )}
                     {msg.data.description && (
                       <p className="text-stone-600">{msg.data.description}</p>
                     )}
@@ -177,12 +194,22 @@ export function ReagentChat({ apiBaseUrl }: { apiBaseUrl: string }) {
                     {(msg.data.colors || []).map((color, idx) => (
                       <div key={idx} className="rounded border border-stone-200 bg-white p-2">
                         <p className="text-stone-600">
+                          {color.method ? (
+                            <span className="font-medium text-cyan-800">{color.method} — </span>
+                          ) : null}
                           {color.label ? (
                             <span className="font-medium">{color.label}: </span>
                           ) : null}
                           <span className="font-mono font-medium" style={{ color: color.hex }}>{color.hex}</span>
                         </p>
-                        <HorizontalBarChart matches={color.matches} />
+                        {color.needs_reagent ? (
+                          <p className="mt-2 text-sm text-amber-800">
+                            Reagent test not identified for this color. Choose <strong>Reagent test</strong> below or
+                            type it in the description (e.g. &quot;Marquis&quot;) and upload again.
+                          </p>
+                        ) : (
+                          <HorizontalBarChart matches={color.matches} />
+                        )}
                       </div>
                     ))}
                     <p className="mt-3 text-xs italic text-amber-700 border-t border-amber-200 pt-2">
@@ -205,10 +232,36 @@ export function ReagentChat({ apiBaseUrl }: { apiBaseUrl: string }) {
           )}
         </div>
         <div className="border-t border-stone-100 p-3 space-y-2">
+          <div>
+            <label htmlFor="reagent-select" className="mb-1 block text-xs font-medium text-stone-600">
+              Reagent test (if the photo doesn’t show the kit name / chart column)
+            </label>
+            <p className="mb-1 text-[11px] text-stone-500">
+              Chart codes also work in the box above: M→Marquis, L→Liebermann, F→Froehde, Md/Mn→Mandelin, Mc/Mk→Mecke,
+              Sm/Sim→Simon&apos;s, Rd/Rb→Robadope, Mr/Mo/Mor→Morris.
+            </p>
+            <select
+              id="reagent-select"
+              value={reagentChoice}
+              onChange={(e) => setReagentChoice(e.target.value)}
+              disabled={uploading}
+              className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-800 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+            >
+              <option value="">Infer from image / description</option>
+              <option value="Marquis">Marquis</option>
+              <option value="Liebermann">Liebermann</option>
+              <option value="Froehde">Froehde</option>
+              <option value="Mandelin">Mandelin</option>
+              <option value="Mecke">Mecke</option>
+              <option value="Simon's">Simon&apos;s</option>
+              <option value="Robadope">Robadope</option>
+              <option value="Morris">Morris</option>
+            </select>
+          </div>
           <textarea
             value={promptText}
             onChange={(e) => setPromptText(e.target.value)}
-            placeholder="Describe what’s in the image (optional): e.g. Marquis reagent, left tube; or Ehrlich test."
+            placeholder="Optional: e.g. which column (Marquis), or tube 1 = Mandelin. Needed if the image has no visible reagent label."
             className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-800 placeholder:text-stone-400 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
             rows={2}
             maxLength={500}

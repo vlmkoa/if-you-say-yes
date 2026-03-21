@@ -1,6 +1,6 @@
 """
-Reagent test analysis — vision (hex extraction) and deterministic color matching.
-Requires OPENAI_API_KEY for GPT-4o vision. Color matching is purely deterministic.
+Reagent test analysis — vision (hex + reagent column extraction) and deterministic color matching
+scoped by test method. Requires OPENAI_API_KEY for GPT-4o vision.
 """
 from __future__ import annotations
 
@@ -10,30 +10,20 @@ import os
 import re
 from typing import Any
 
+from .reagent_chart_data import (
+    REAGENT_CHART,
+    infer_reagent_from_text,
+    list_known_reagents,
+    normalize_reagent_method,
+    reagent_method_abbreviation_hint,
+)
+
 logger = logging.getLogger("reagent-vision")
 
 
 class ReagentVisionQuotaError(Exception):
     """Raised when the vision API fails due to quota/billing (429)."""
     pass
-
-
-# Predefined reagent reaction colors (hex) for common reagents. Substance name -> hex.
-# Euclidean distance in RGB space is used to find closest matches.
-REAGENT_COLORS: dict[str, str] = {
-    "MDMA (Marquis)": "#4B0082",
-    "Amphetamine (Marquis)": "#E6B800",
-    "LSD (Ehrlich)": "#6B2D5C",
-    "Cocaine (Scott)": "#1E3A5F",
-    "Heroin (Marquis)": "#6B2D5C",
-    "Morphine (Marquis)": "#4B0082",
-    "Ketamine (Mandelin)": "#8B4513",
-    "DMT (Ehrlich)": "#4B0082",
-    "2C-B (Marquis)": "#4B0082",
-    "Methamphetamine (Simon's)": "#006400",
-    "Negative/No reaction": "#F5F5DC",
-    "Inconclusive": "#808080",
-}
 
 
 def hex_to_rgb(hex_str: str) -> tuple[int, int, int]:
@@ -52,39 +42,42 @@ def rgb_distance(a: tuple[int, int, int], b: tuple[int, int, int]) -> float:
     return (sum((x - y) ** 2 for x, y in zip(a, b))) ** 0.5
 
 
-def match_hex_to_substances(hex_code: str, top_k: int = 3) -> list[dict[str, Any]]:
+def match_hex_to_drugs_for_reagent(hex_code: str, method: str, top_k: int = 5) -> list[dict[str, Any]]:
     """
-    Deterministic matching: compute Euclidean distance from extracted hex to predefined
-    reagent colors. Return top_k closest substances with probability percentages.
-    Probability is derived from inverse distance, normalized so top matches sum to 100%.
+    Deterministic matching within one reagent column: for each substance, distance is the
+    minimum RGB distance to any of its reference hexes (multi-step reactions).
+    Returns top_k drugs with probability percentages (inverse distance, normalized).
     """
+    canon = normalize_reagent_method(method)
+    if not canon or canon not in REAGENT_CHART:
+        return []
+
     try:
         target = hex_to_rgb(hex_code)
     except (ValueError, TypeError):
         return []
 
+    drugs = REAGENT_CHART[canon]
     distances: list[tuple[str, float]] = []
-    for substance, ref_hex in REAGENT_COLORS.items():
-        try:
-            ref_rgb = hex_to_rgb(ref_hex)
-            d = rgb_distance(target, ref_rgb)
-            distances.append((substance, d))
-        except ValueError:
-            continue
+    for drug_name, hexes in drugs.items():
+        best: float | None = None
+        for ref in hexes:
+            try:
+                d = rgb_distance(target, hex_to_rgb(ref))
+            except ValueError:
+                continue
+            best = d if best is None else min(best, d)
+        if best is not None:
+            distances.append((drug_name, best))
 
     if not distances:
         return []
 
     distances.sort(key=lambda x: x[1])
     top = distances[:top_k]
-    # Inverse distance as score; normalize to percentages (avoid div by zero)
-    max_d = max(d for _, d in top) or 1
     scores = [1.0 / (1.0 + d) for _, d in top]
-    total = sum(scores)
-    if total <= 0:
-        total = 1.0
+    total = sum(scores) or 1.0
     probabilities = [round(100.0 * s / total, 1) for s in scores]
-    # Normalize so they sum to 100
     diff = 100.0 - sum(probabilities)
     if diff != 0 and probabilities:
         probabilities[0] = round(probabilities[0] + diff, 1)
@@ -93,6 +86,39 @@ def match_hex_to_substances(hex_code: str, top_k: int = 3) -> list[dict[str, Any
         {"substance": name, "probability": p}
         for (name, _), p in zip(top, probabilities)
     ]
+
+
+def resolve_reagent_for_color_entry(
+    color_entry: dict[str, Any],
+    *,
+    explicit_reagent: str | None,
+    user_prompt: str | None,
+    vision_labels: list[str],
+    single_color: bool,
+) -> str | None:
+    """
+    Resolve which reagent column applies to this color sample.
+    Priority: per-color method/label from vision (chart headers) > explicit form field >
+    user chat text > OCR labels (only when there is a single color region).
+    """
+    r = normalize_reagent_method(color_entry.get("method") or color_entry.get("label"))
+    if r:
+        return r
+
+    r = normalize_reagent_method(explicit_reagent)
+    if r:
+        return r
+
+    r = infer_reagent_from_text(user_prompt)
+    if r:
+        return r
+
+    if single_color:
+        blob = " ".join(vision_labels)
+        r = infer_reagent_from_text(blob)
+        if r:
+            return r
+    return None
 
 
 def _normalize_hex(s: str) -> str | None:
@@ -107,9 +133,8 @@ def _normalize_hex(s: str) -> str | None:
 
 
 def _parse_vision_json(content: str) -> dict[str, Any] | None:
-    """Parse LLM JSON; return normalized dict with colors[], labels[], description or None."""
+    """Parse LLM JSON; return normalized dict with colors[{hex, label?, method?}], labels[], description."""
     content = (content or "").strip()
-    # Strip markdown code block if present
     if content.startswith("```"):
         content = re.sub(r"^```(?:json)?\s*", "", content)
         content = re.sub(r"\s*```\s*$", "", content)
@@ -120,34 +145,50 @@ def _parse_vision_json(content: str) -> dict[str, Any] | None:
     if not isinstance(obj, dict):
         return None
     out: dict[str, Any] = {"colors": [], "labels": [], "description": None}
-    # Description
     if isinstance(obj.get("description"), str) and obj["description"].strip():
         out["description"] = obj["description"].strip()
-    # Labels: array of strings (visible text in image)
     labels = obj.get("labels")
     if isinstance(labels, list):
         out["labels"] = [str(x).strip() for x in labels if x and str(x).strip()]
     elif isinstance(obj.get("label"), str) and obj["label"].strip():
         out["labels"] = [obj["label"].strip()]
-    # Colors: support single "hex" or "colors" array with { hex, label? }
+
+    def append_color(h: str, label: str | None, method: str | None) -> None:
+        out["colors"].append(
+            {
+                "hex": h,
+                "label": label.strip() if label else None,
+                "method": method.strip() if method else None,
+            }
+        )
+
     hex_single = obj.get("hex") or obj.get("hex_code")
     if isinstance(hex_single, str):
         h = _normalize_hex(hex_single)
         if h:
-            out["colors"] = [{"hex": h, "label": None}]
+            m = obj.get("method")
+            m_str = str(m).strip() if m else None
+            append_color(h, None, m_str)
             return out
+
     colors = obj.get("colors")
     if isinstance(colors, list):
         for c in colors:
             if isinstance(c, dict):
                 h = _normalize_hex(str(c.get("hex") or c.get("hex_code") or ""))
-                if h:
-                    label = c.get("label")
-                    out["colors"].append({"hex": h, "label": str(label).strip() if label else None})
+                if not h:
+                    continue
+                label = c.get("label")
+                method = c.get("method")
+                append_color(
+                    h,
+                    str(label).strip() if label else None,
+                    str(method).strip() if method else None,
+                )
             elif isinstance(c, str):
                 h = _normalize_hex(c)
                 if h:
-                    out["colors"].append({"hex": h, "label": None})
+                    append_color(h, None, None)
     if out["colors"]:
         return out
     return None
@@ -159,10 +200,10 @@ async def extract_vision_from_image(
 ) -> dict[str, Any] | None:
     """
     Send image to GPT-4o vision. Extract:
-    - colors: list of { hex, label? } for each reaction/liquid (multiple tubes or regions).
-    - labels: any visible text (reagent name, bottle label, handwritten note).
-    - description: optional short description of the scene.
-    If user_prompt is provided, the model uses it to associate colors with the correct reagent/tube when possible.
+    - colors: list of { hex, method?, label? } — **method** should be the reagent test name
+      (Marquis, Liebermann, Froehde, Mandelin, Mecke) when visible as a column header or label.
+    - labels: visible text (headers, bottle labels).
+    - description: short scene description.
     """
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key or not api_key.strip():
@@ -176,26 +217,39 @@ async def extract_vision_from_image(
         return None
 
     import base64
+
     client = AsyncOpenAI(api_key=api_key)
     b64 = base64.standard_b64encode(image_bytes).decode("ascii")
     data_uri = f"data:image/jpeg;base64,{b64}"
 
+    known = ", ".join(list_known_reagents())
+    abbrev_help = reagent_method_abbreviation_hint()
     system = (
-        "You are analyzing a reagent drug test result image. Extract ONLY observable data; do not guess or name any drug. "
+        "You are analyzing reagent drug test documentation or photos (e.g. chart, kit, or reaction vial). "
+        "Extract ONLY observable data; do not guess or name which illegal drug is in an unknown sample. "
         "Return a JSON object with:\n"
-        "1) \"colors\": an array of objects, each with \"hex\" (hex color code, e.g. \"#4B0082\") and optional \"label\" (e.g. reagent name or \"tube 1\"). "
-        "If there is one main reaction color, use one object; if multiple tubes or regions, add one object per color.\n"
-        "2) \"labels\": an array of any visible text in the image (reagent names on bottles, handwritten labels, kit name).\n"
-        "3) \"description\": optional short description of the scene (e.g. \"Single test tube with purple liquid\", \"Multi-panel reagent kit\").\n"
-        "Return ONLY valid JSON, no other text. For hex use 6-digit format with #."
+        f"1) \"colors\": array of objects. Each object MUST have \"hex\" (#RRGGBB) for the main liquid/reaction color shown. "
+        f"When a column or region corresponds to a specific reagent test, set \"method\" to one of: {known}, "
+        f"OR to the single- or two-letter code printed on the chart (e.g. M, L, F, Md, Mc). {abbrev_help} "
+        "Use \"method\" when the image shows a chart column header, printed label, or clear association. "
+        "Optional \"label\" for extra text (e.g. tube number).\n"
+        "2) \"labels\": array of visible text strings (headers, kit name, handwritten notes).\n"
+        "3) \"description\": optional short description.\n"
+        "If the image is a multi-column chart, output one color object per distinct reaction color you are reporting, "
+        "each with the correct \"method\" for that column when headers are visible. "
+        "If only one reaction is shown and no method is visible, omit \"method\" (the user must state it separately). "
+        "Return ONLY valid JSON."
     )
 
-    user_text = "Return JSON with colors (array of {hex, label?}), labels (array of strings), and optional description."
+    user_text = (
+        f"Return JSON: colors as [{{hex, method?, label?}}], labels as string array, optional description. "
+        f"Known method names: {known}. {abbrev_help}"
+    )
     if user_prompt and user_prompt.strip():
         user_text = (
-            "The user provided this description of what is in the image: \""
+            "User context: \""
             + user_prompt.strip()[:500]
-            + "\". Use it to label which reagent or tube each color corresponds to when possible (e.g. set \"label\" to the reagent name or tube the user refers to). "
+            + "\". Use this to set \"method\" on each color when they name the reagent or tube. "
             + user_text
         )
 
@@ -212,13 +266,12 @@ async def extract_vision_from_image(
                     ],
                 },
             ],
-            max_tokens=400,
+            max_tokens=800,
         )
         content = (response.choices[0].message.content or "").strip()
         return _parse_vision_json(content)
     except Exception as e:
         logger.exception("Vision API error: %s", e)
-        # Re-raise quota/billing errors so the API can return a clear message
         err_str = str(e).lower()
         if "429" in err_str or "quota" in err_str or "insufficient_quota" in err_str or "rate" in err_str:
             raise ReagentVisionQuotaError(

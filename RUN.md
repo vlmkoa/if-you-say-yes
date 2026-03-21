@@ -197,24 +197,37 @@ Set `MODERATION_API_KEY` in the environment (or in `application.properties`) so 
 
 ---
 
-## 5.2 Phase 4: Reagent test analysis (chatbot)
+## 5.2 Phase 4: Reagent test analysis (vision LLM + chart)
 
-The **Reagent test** page (http://localhost:3000/reagent) lets users upload an image of a reagent drug test result. The backend uses a **vision LLM (GPT-4o)** to extract only the **hex color** of the liquid in the test tube (the LLM does not guess the drug). A **deterministic** step then matches that hex to a predefined set of reagent reaction colors using Euclidean distance in RGB space and returns the **top 3** substance matches with probability percentages, shown as a horizontal bar chart in the chat.
+The **Reagent test** page (http://localhost:3000/reagent) uploads a photo of a reagent reaction or chart. The Python backend uses **OpenAI GPT-4o (vision)** to extract **structured, observable** information from the image; **substance suggestions** come from a **local** color chart (`backend/reagent_chart_data.py`), not from the LLM naming drugs.
+
+**For a deeper flow diagram and all other LLM uses in this repo** (maintenance scripts, models), see **`FLOW_AND_TEST.md` §2b**.
+
+### What the LLM does vs what code does
+
+| Step | Component | Role |
+|------|-----------|------|
+| 1 | **GPT-4o vision** (`backend/reagent_vision.py`) | Sees the image + optional user text; returns **JSON** with `colors[]` (each with `hex`, optional `method` / column), `labels[]` (visible text), optional `description`. Prompts tell the model **not** to identify an unknown sample as a specific drug. |
+| 2 | **Resolver** (`resolve_reagent_for_color_entry`) | Picks the **reagent test** for each swatch: per-color `method` from vision → optional form field **`reagent`** → **`prompt`** text (e.g. “Marquis”, “Md”) → OCR `labels` if there is only one color. Supports chart initials (**M**→Marquis, **Md**→Mandelin, **Mr/Mo**→Morris, etc.). |
+| 3 | **Chart** (`reagent_chart_data.py`) | For each `(hex, resolved_method)`, scores drugs **only in that reagent’s column**; each drug may have multiple reference hexes (e.g. purple→black). **No LLM** here — Euclidean distance in RGB and normalized scores. |
+
+If the reagent type cannot be resolved, the API returns `needs_reagent: true` for that color so the user can choose the test from the dropdown or type it and upload again.
 
 **Requirements:**
 
-- **OPENAI_API_KEY** must be set for the backend (e.g. in `.env`). Without it, **POST /reagent/analyze** returns 503.
-- Backend runs on port 8000; frontend calls `NEXT_PUBLIC_BACKEND_URL` (default http://localhost:8000).
+- **OPENAI_API_KEY** on the backend (e.g. root `.env`). Without it, **POST /reagent/analyze** returns **503**.
+- Frontend uses **`NEXT_PUBLIC_BACKEND_URL`** (default `http://localhost:8000`) for `POST /reagent/analyze`.
 
-**Flow:**
+**User flow:**
 
-1. User opens **Reagent test** in the nav, uploads an image (JPEG, PNG or WebP, max 10 MB).
-2. Frontend sends the image to **POST /reagent/analyze** (multipart).
-3. Backend sends the image to GPT-4o with a strict system prompt: return only a JSON object `{"hex": "#RRGGBB"}`.
-4. Backend runs deterministic color matching (Euclidean distance in RGB to a predefined reagent color dictionary) and returns `{ "hex": "#...", "matches": [ { "substance": "...", "probability": 85.2 }, ... ] }`.
-5. UI shows the detected hex, a horizontal bar chart of the top 3 matches, and the mandatory disclaimer: *"Colorimetric testing is presumptive and subject to contamination errors."*
+1. Open **Reagent test** in the nav; optionally set **Reagent test** dropdown and/or description (e.g. column letter or full name).
+2. Upload **JPEG / PNG / WebP** (max 10 MB).
+3. Frontend sends **multipart**: `image`, optional `prompt`, optional **`reagent`** (explicit override when the photo has no header).
+4. UI shows each detected color, resolved **method** (if any), horizontal bar chart of **matches**, **`reference_note`** (DanceSafe / verify with kit), and the disclaimer: *“Colorimetric testing is presumptive and subject to contamination errors.”*
 
-**API:** `POST /reagent/analyze` — body: multipart form with `image` (file). Response: `{ "hex": "#4B0082", "matches": [ {"substance": "MDMA (Marquis)", "probability": 72.1}, ... ] }`.
+**API:** `POST /reagent/analyze` — multipart: `image` (file), `prompt` (optional), `reagent` (optional). Response includes `colors[]` (`hex`, `method`, `needs_reagent`, `matches[]`), `labels`, `known_reagents`, `reference_note`.
+
+**Chart data:** `backend/reagent_chart_data.py` — hierarchical **method → substance → [hex, …]**; hex values are approximations; always compare to your **vendor / DanceSafe** chart.
 
 ---
 
